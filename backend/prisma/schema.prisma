@@ -1,0 +1,155 @@
+// This is your Prisma schema file.
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  spotifyId    String   @unique
+  displayName  String
+  email        String?
+  imageUrl     String?
+  country      String?
+  product      String?  // "premium" or "free"
+  accessToken  String   // encrypted in production
+  refreshToken String
+  tokenExpiry  DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  listeningEvents  ListeningEvent[]
+  artistSnapshots  ArtistSnapshot[]
+  trackSnapshots   TrackSnapshot[]
+  genreSnapshots   GenreSnapshot[]
+}
+
+model Artist {
+  id         String   @id @default(cuid())
+  spotifyId  String   @unique
+  name       String
+  genres     String   // JSON array of genres stored as string
+  popularity Int?
+  imageUrl   String?
+  spotifyUrl String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  artistSnapshots ArtistSnapshot[]
+  trackArtists    TrackArtist[]
+}
+
+model Album {
+  id          String   @id @default(cuid())
+  spotifyId   String   @unique
+  name        String
+  imageUrl    String?
+  releaseDate String?
+  albumType   String?
+  spotifyUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  tracks Track[]
+}
+
+model Track {
+  id          String   @id @default(cuid())
+  spotifyId   String   @unique
+  name        String
+  albumId     String?
+  durationMs  Int
+  popularity  Int?
+  previewUrl  String?
+  spotifyUrl  String?
+  explicit    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  album           Album?          @relation(fields: [albumId], references: [id])
+  trackArtists    TrackArtist[]
+  listeningEvents ListeningEvent[]
+  trackSnapshots  TrackSnapshot[]
+}
+
+// Junction table for track ↔ artist (many-to-many)
+model TrackArtist {
+  trackId    String
+  artistId   String
+  position   Int    @default(0) // 0 = primary artist
+
+  track   Track  @relation(fields: [trackId], references: [id])
+  artist  Artist @relation(fields: [artistId], references: [id])
+
+  @@id([trackId, artistId])
+}
+
+model ListeningEvent {
+  id       String   @id @default(cuid())
+  userId   String
+  trackId  String
+  playedAt DateTime
+  source   String   @default("recently_played") // "recently_played" | "current_playback"
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  track Track @relation(fields: [trackId], references: [id])
+
+  @@unique([userId, trackId, playedAt])
+  @@index([userId, playedAt])
+}
+
+// Historical snapshot: top artists at a point in time
+model ArtistSnapshot {
+  id          String   @id @default(cuid())
+  userId      String
+  artistId    String
+  timeRange   String   // "short_term" | "medium_term" | "long_term"
+  rank        Int
+  capturedAt  DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  artist Artist @relation(fields: [artistId], references: [id])
+
+  @@index([userId, timeRange, capturedAt])
+}
+
+// Historical snapshot: top tracks at a point in time
+model TrackSnapshot {
+  id         String   @id @default(cuid())
+  userId     String
+  trackId    String
+  timeRange  String   // "short_term" | "medium_term" | "long_term"
+  rank       Int
+  capturedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  track Track @relation(fields: [trackId], references: [id])
+
+  @@index([userId, timeRange, capturedAt])
+}
+
+// Historical snapshot: genre presence at a point in time
+model GenreSnapshot {
+  id         String   @id @default(cuid())
+  userId     String
+  genre      String
+  score      Float    // relative score 0–1 based on artist count
+  count      Int      // number of top artists in this genre
+  timeRange  String   // "short_term" | "medium_term" | "long_term"
+  capturedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, capturedAt])
+}

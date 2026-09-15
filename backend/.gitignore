@@ -1,0 +1,34 @@
+# Environment files — NEVER commit these
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+prisma/dev.db
+prisma/dev.db-journal
+sessions.db
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
