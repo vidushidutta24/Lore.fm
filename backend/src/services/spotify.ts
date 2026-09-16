@@ -261,10 +261,9 @@ export async function upsertTrack(track: SpotifyTrack) {
 export async function saveArtistSnapshot(
   userId: string,
   artists: SpotifyArtist[],
-  timeRange: TimeRange
+  timeRange: TimeRange,
+  capturedAt: Date = new Date()
 ) {
-  const capturedAt = new Date();
-
   for (let i = 0; i < artists.length; i++) {
     const artist = artists[i];
     const dbArtist = await upsertArtist(artist);
@@ -287,10 +286,9 @@ export async function saveArtistSnapshot(
 export async function saveTrackSnapshot(
   userId: string,
   tracks: SpotifyTrack[],
-  timeRange: TimeRange
+  timeRange: TimeRange,
+  capturedAt: Date = new Date()
 ) {
-  const capturedAt = new Date();
-
   for (let i = 0; i < tracks.length; i++) {
     const track = tracks[i];
     const dbTrack = await upsertTrack(track);

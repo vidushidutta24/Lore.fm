@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AI Interpretation Service
  *
  * Provides a clean adapter layer for interpreting music analytics into
@@ -423,15 +423,46 @@ Return ONLY this JSON schema filled with your analysis:
 }`;
 }
 
+// ─── In-Memory Response Cache ───────────────────────────────────────────────
+
+interface CachedAIEntry {
+  interpretation: AIInterpretationResponse;
+  contextFingerprint: string;
+  cachedAt: number;
+}
+
+const aiResponseCache = new Map<string, CachedAIEntry>();
+
+function computeContextFingerprint(ctx: TasteAnalysisContext): string {
+  const currentArtists = ctx.current.topArtists.map((a) => a.name).join('|');
+  const recentArtists = ctx.recent.topArtists.map((a) => a.name).join('|');
+  const yearlyArtists = ctx.yearly.topArtists.map((a) => a.name).join('|');
+  const currentMetrics = Object.values(ctx.current.metrics).join(',');
+  const recentMetrics = Object.values(ctx.recent.metrics).join(',');
+  const yearlyMetrics = Object.values(ctx.yearly.metrics).join(',');
+
+  return `${ctx.userId}:${currentArtists}#${recentArtists}#${yearlyArtists}#${currentMetrics}#${recentMetrics}#${yearlyMetrics}`;
+}
+
 // ─── External AI Provider Invocation ────────────────────────────────────────
 
 export async function generateTasteAIInterpretation(
   context: TasteAnalysisContext
 ): Promise<AIInterpretationResponse> {
+  const fingerprint = computeContextFingerprint(context);
+  const cached = aiResponseCache.get(context.userId);
+
+  // Return cached interpretation if the underlying listening metrics haven't changed (30m TTL)
+  if (cached && cached.contextFingerprint === fingerprint && Date.now() - cached.cachedAt < 30 * 60 * 1000) {
+    return cached.interpretation;
+  }
+
   const geminiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  // 1. Gemini
+  let interpretation: AIInterpretationResponse | null = null;
+
+  // 1. Gemini (Single consolidated request)
   if (geminiKey) {
     try {
       const response = await axios.post(
@@ -454,7 +485,7 @@ export async function generateTasteAIInterpretation(
       const rawJson = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
       if (rawJson) {
         const parsed = JSON.parse(rawJson);
-        return {
+        interpretation = {
           ...parsed,
           metadata: {
             provider: 'gemini',
@@ -466,14 +497,14 @@ export async function generateTasteAIInterpretation(
       }
     } catch (err) {
       console.warn(
-        '[AIService] Gemini request failed or timed out. Falling back to deterministic synthesizer:',
+        '[AIService] Gemini request failed or timed out. Falling back to next provider:',
         (err as Error).message
       );
     }
   }
 
-  // 2. OpenAI
-  if (openaiKey) {
+  // 2. OpenAI (Secondary fallback)
+  if (!interpretation && openaiKey) {
     try {
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
@@ -495,7 +526,7 @@ export async function generateTasteAIInterpretation(
       const rawJson = response.data?.choices?.[0]?.message?.content;
       if (rawJson) {
         const parsed = JSON.parse(rawJson);
-        return {
+        interpretation = {
           ...parsed,
           metadata: {
             provider: 'openai',
@@ -513,6 +544,17 @@ export async function generateTasteAIInterpretation(
     }
   }
 
-  // 3. Deterministic Fallback
-  return generateDeterministicInterpretation(context);
+  // 3. Deterministic Synthesizer (Zero-token fallback)
+  if (!interpretation) {
+    interpretation = generateDeterministicInterpretation(context);
+  }
+
+  // Cache for future requests
+  aiResponseCache.set(context.userId, {
+    interpretation,
+    contextFingerprint: fingerprint,
+    cachedAt: Date.now(),
+  });
+
+  return interpretation;
 }

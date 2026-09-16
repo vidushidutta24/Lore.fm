@@ -195,11 +195,11 @@ const lastSync = new Map<string, number>();
 const syncLocks = new Map<string, Promise<void>>();
 
 /**
- * Ensure user has fresh data in DB by querying Spotify API and saving snapshots if needed.
+ * Ensure user has fresh data in DB for all 3 timeframes and recent events.
+ * Fetches short_term, medium_term, and long_term in parallel.
  */
-async function ensureSpotifyData(userId: string, timeRange: TimeRange) {
-  const cacheKey = `${userId}:${timeRange}`;
-  
+async function ensureAllSpotifyData(userId: string) {
+  const cacheKey = `${userId}:all_periods`;
   const now = Date.now();
   if (lastSync.has(cacheKey) && now - lastSync.get(cacheKey)! < 5 * 60 * 1000) {
     return;
@@ -211,51 +211,103 @@ async function ensureSpotifyData(userId: string, timeRange: TimeRange) {
 
   const syncPromise = (async () => {
     try {
-    const [artistsData, tracksData, recentData] = await Promise.all([
-      getTopArtists(userId, timeRange, 50).catch(() => ({ items: [], total: 0 })),
-      getTopTracks(userId, timeRange, 50).catch(() => ({ items: [], total: 0 })),
-      getRecentlyPlayed(userId, 50).catch(() => ({ items: [] })),
-    ]);
-
-    if (artistsData.items.length > 0) {
-      await saveArtistSnapshot(userId, artistsData.items, timeRange).catch(() => {});
-      await saveGenreSnapshot(userId, artistsData.items, timeRange).catch(() => {});
-    }
-
-    if (tracksData.items.length > 0) {
-      await saveTrackSnapshot(userId, tracksData.items, timeRange).catch(() => {});
-    }
-
-    if (recentData.items && recentData.items.length > 0) {
-      await saveListeningEvents(userId, recentData.items).catch(() => {});
-    }
-
-    // Also fetch short and long term artists if doing medium_term, for accurate loyalty/discovery comparisons
-    if (timeRange === 'medium_term') {
-      const [shortData, longData] = await Promise.all([
-        getTopArtists(userId, 'short_term', 50).catch(() => ({ items: [] })),
-        getTopArtists(userId, 'long_term', 50).catch(() => ({ items: [] })),
+      const [
+        shortArtists,
+        mediumArtists,
+        longArtists,
+        shortTracks,
+        mediumTracks,
+        longTracks,
+        recentData,
+      ] = await Promise.all([
+        getTopArtists(userId, 'short_term', 50).catch(() => ({ items: [], total: 0 })),
+        getTopArtists(userId, 'medium_term', 50).catch(() => ({ items: [], total: 0 })),
+        getTopArtists(userId, 'long_term', 50).catch(() => ({ items: [], total: 0 })),
+        getTopTracks(userId, 'short_term', 50).catch(() => ({ items: [], total: 0 })),
+        getTopTracks(userId, 'medium_term', 50).catch(() => ({ items: [], total: 0 })),
+        getTopTracks(userId, 'long_term', 50).catch(() => ({ items: [], total: 0 })),
+        getRecentlyPlayed(userId, 50).catch(() => ({ items: [] })),
       ]);
-      if (shortData.items.length > 0) {
-        await saveArtistSnapshot(userId, shortData.items, 'short_term').catch(() => {});
-        await saveGenreSnapshot(userId, shortData.items, 'short_term').catch(() => {});
-      }
-      if (longData.items.length > 0) {
-        await saveArtistSnapshot(userId, longData.items, 'long_term').catch(() => {});
-        await saveGenreSnapshot(userId, longData.items, 'long_term').catch(() => {});
-      }
-    }
 
-    lastSync.set(cacheKey, Date.now());
-  } catch (err) {
-    console.error('[TasteEngine] Error ensuring Spotify data:', err);
-  } finally {
-    syncLocks.delete(cacheKey);
-  }
+      const capturedAt = new Date();
+
+      await Promise.all([
+        shortArtists.items.length > 0
+          ? saveArtistSnapshot(userId, shortArtists.items, 'short_term', capturedAt)
+          : Promise.resolve(),
+        mediumArtists.items.length > 0
+          ? saveArtistSnapshot(userId, mediumArtists.items, 'medium_term', capturedAt)
+          : Promise.resolve(),
+        longArtists.items.length > 0
+          ? saveArtistSnapshot(userId, longArtists.items, 'long_term', capturedAt)
+          : Promise.resolve(),
+        shortTracks.items.length > 0
+          ? saveTrackSnapshot(userId, shortTracks.items, 'short_term', capturedAt)
+          : Promise.resolve(),
+        mediumTracks.items.length > 0
+          ? saveTrackSnapshot(userId, mediumTracks.items, 'medium_term', capturedAt)
+          : Promise.resolve(),
+        longTracks.items.length > 0
+          ? saveTrackSnapshot(userId, longTracks.items, 'long_term', capturedAt)
+          : Promise.resolve(),
+        recentData.items && recentData.items.length > 0
+          ? saveListeningEvents(userId, recentData.items)
+          : Promise.resolve(),
+      ]);
+
+      lastSync.set(cacheKey, Date.now());
+    } catch (err) {
+      console.error('[TasteEngine] Error ensuring all Spotify data:', err);
+    } finally {
+      syncLocks.delete(cacheKey);
+    }
   })();
 
   syncLocks.set(cacheKey, syncPromise);
   return syncPromise;
+}
+
+async function getLatestArtistSnapshots(userId: string, timeRange: TimeRange) {
+  const latest = await prisma.artistSnapshot.findFirst({
+    where: { userId, timeRange },
+    orderBy: { capturedAt: 'desc' },
+  });
+  if (!latest) return [];
+
+  return prisma.artistSnapshot.findMany({
+    where: {
+      userId,
+      timeRange,
+      capturedAt: latest.capturedAt,
+    },
+    orderBy: { rank: 'asc' },
+    include: { artist: true },
+  });
+}
+
+async function getLatestTrackSnapshots(userId: string, timeRange: TimeRange) {
+  const latest = await prisma.trackSnapshot.findFirst({
+    where: { userId, timeRange },
+    orderBy: { capturedAt: 'desc' },
+  });
+  if (!latest) return [];
+
+  return prisma.trackSnapshot.findMany({
+    where: {
+      userId,
+      timeRange,
+      capturedAt: latest.capturedAt,
+    },
+    orderBy: { rank: 'asc' },
+    include: {
+      track: {
+        include: {
+          album: true,
+          trackArtists: { include: { artist: true } },
+        },
+      },
+    },
+  });
 }
 
 // ─── Main Calculation Engine ────────────────────────────────────────────────
@@ -264,61 +316,23 @@ export async function calculateFullTasteProfile(
   userId: string,
   timeRange: TimeRange = 'medium_term'
 ): Promise<FullTasteProfile> {
-  // 1. Ensure freshest data is synced
-  await ensureSpotifyData(userId, timeRange);
+  // 1. Ensure freshest data is synced for all periods
+  await ensureAllSpotifyData(userId);
 
-  // 2. Fetch required datasets from Database
+  // 2. Fetch required datasets from Database independently
   const [
     currentArtistSnapshots,
     shortArtistSnapshots,
+    mediumArtistSnapshots,
     longArtistSnapshots,
     currentTrackSnapshots,
     recentListeningEvents,
   ] = await Promise.all([
-    // Current timeRange artist snapshots
-    prisma.artistSnapshot.findMany({
-      where: { userId, timeRange },
-      orderBy: { capturedAt: 'desc' },
-      take: 50,
-      distinct: ['artistId'],
-      include: { artist: true },
-    }),
-
-    // Short-term artist snapshots for comparison
-    prisma.artistSnapshot.findMany({
-      where: { userId, timeRange: 'short_term' },
-      orderBy: { capturedAt: 'desc' },
-      take: 50,
-      distinct: ['artistId'],
-      include: { artist: true },
-    }),
-
-    // Long-term artist snapshots for comparison
-    prisma.artistSnapshot.findMany({
-      where: { userId, timeRange: 'long_term' },
-      orderBy: { capturedAt: 'desc' },
-      take: 50,
-      distinct: ['artistId'],
-      include: { artist: true },
-    }),
-
-    // Current track snapshots
-    prisma.trackSnapshot.findMany({
-      where: { userId, timeRange },
-      orderBy: { capturedAt: 'desc' },
-      take: 50,
-      distinct: ['trackId'],
-      include: {
-        track: {
-          include: {
-            album: true,
-            trackArtists: { include: { artist: true } },
-          },
-        },
-      },
-    }),
-
-    // Recent listening events (last 50 events)
+    getLatestArtistSnapshots(userId, timeRange),
+    getLatestArtistSnapshots(userId, 'short_term'),
+    getLatestArtistSnapshots(userId, 'medium_term'),
+    getLatestArtistSnapshots(userId, 'long_term'),
+    getLatestTrackSnapshots(userId, timeRange),
     prisma.listeningEvent.findMany({
       where: { userId },
       orderBy: { playedAt: 'desc' },
@@ -334,13 +348,14 @@ export async function calculateFullTasteProfile(
     }),
   ]);
 
-  // Fallback to active snapshots if short/long aren't separate
-  const effectiveArtists = currentArtistSnapshots.length > 0 ? currentArtistSnapshots : shortArtistSnapshots;
-  const shortArtists = shortArtistSnapshots.length > 0 ? shortArtistSnapshots : effectiveArtists;
-  const longArtists = longArtistSnapshots.length > 0 ? longArtistSnapshots : effectiveArtists;
+  // Strict data separation: effectiveArtists is strictly the current period's artists
+  const effectiveArtists = currentArtistSnapshots;
+  const shortArtists = shortArtistSnapshots;
+  const mediumArtists = mediumArtistSnapshots;
+  const longArtists = longArtistSnapshots;
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 1. ARTIST DIVERSITY CALCULATION
+  // 1. ARTIST DIVERSITY CALCULATION (for this specific period)
   // ──────────────────────────────────────────────────────────────────────────
   const totalArtists = effectiveArtists.length;
   // Rank weights for estimation (Zipf-like distribution: weight = 1 / rank^0.75)
@@ -357,7 +372,7 @@ export async function calculateFullTasteProfile(
   }
   const maxEntropy = totalArtists > 1 ? Math.log2(totalArtists) : 1;
   const normalizedEntropy = maxEntropy > 0 ? entropy / maxEntropy : 0.5;
-  const artistDiversityScore = Math.round(Math.min(Math.max(normalizedEntropy * 100, 10), 100));
+  const artistDiversityScore = totalArtists > 0 ? Math.round(Math.min(Math.max(normalizedEntropy * 100, 10), 100)) : 0;
 
   let listeningBreadth: ArtistDiversityInsight['listeningBreadth'] = 'Moderate Rotation';
   let artistDiversityDesc = 'You have a healthy rotation of artists with a few steadfast favorites.';
@@ -381,12 +396,12 @@ export async function calculateFullTasteProfile(
     analyzedItemCount: totalArtists,
     top3DominancePercentage: top3DominancePct,
     listeningBreadth,
-    description: artistDiversityDesc,
+    description: totalArtists > 0 ? artistDiversityDesc : 'No artist data available for this period.',
     topArtistsShare,
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 2. GENRE PROFILE CALCULATION
+  // 2. GENRE PROFILE CALCULATION (for this specific period)
   // ──────────────────────────────────────────────────────────────────────────
   const genreCounts: Record<string, number> = {};
   for (const snap of effectiveArtists) {
@@ -413,10 +428,9 @@ export async function calculateFullTasteProfile(
   const totalUniqueGenres = sortedGenreEntries.length;
 
   // Genre diversity score: based on unique genre count and distribution spread
-  const genreDiversityScore = Math.min(
-    Math.round((Math.min(totalUniqueGenres, 25) / 25) * 100),
-    100
-  );
+  const genreDiversityScore = totalUniqueGenres > 0
+    ? Math.min(Math.round((Math.min(totalUniqueGenres, 25) / 25) * 100), 100)
+    : 0;
 
   let genreDiversityRating: GenreProfileInsight['genreDiversityRating'] = 'Genre Curious';
   let genreProfileDesc = 'You explore multiple genres while maintaining a consistent sound palette.';
@@ -434,7 +448,9 @@ export async function calculateFullTasteProfile(
     totalUniqueGenres,
     distribution,
     genreDiversityRating,
-    description: genreProfileDesc,
+    description: totalUniqueGenres > 0
+      ? genreProfileDesc
+      : 'Spotify did not return genre tags for your top artists in this period.',
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -495,7 +511,7 @@ export async function calculateFullTasteProfile(
       recentTrackCount: item.count,
     }));
 
-  // Trending genres in short term vs long term
+  // Trending genres in short term
   const shortGenreCounts: Record<string, number> = {};
   for (const snap of shortArtists) {
     try {
@@ -530,7 +546,7 @@ export async function calculateFullTasteProfile(
   if (trendingGenres.length > 0) {
     observations.push({
       tag: 'Trend',
-      text: `Your recent listening leans heavily toward ${trendingGenres.slice(0, 2).join(' and ')}.`,
+      text: `Your recent listening leans toward ${trendingGenres.slice(0, 2).join(' and ')}.`,
     });
   }
 
@@ -548,49 +564,122 @@ export async function calculateFullTasteProfile(
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 4. LOYALTY VS DISCOVERY BEHAVIOR
+  // 4. PERIOD-SPECIFIC LOYALTY VS DISCOVERY BEHAVIOR
   // ──────────────────────────────────────────────────────────────────────────
   const longTermIds = new Set(longArtists.map((a) => a.artistId));
   const shortTermIds = new Set(shortArtists.map((a) => a.artistId));
+  const mediumTermIds = new Set(mediumArtists.map((a) => a.artistId));
 
-  const loyalSnaps = shortArtists.filter((a) => longTermIds.has(a.artistId));
-  const freshSnaps = shortArtists.filter((a) => !longTermIds.has(a.artistId));
-  const dormantSnaps = longArtists.filter((a) => !shortTermIds.has(a.artistId));
+  let loyaltyScore = 50;
+  let discoveryScore = 50;
+  let loyalAnchors: ArtistCategoryItem[] = [];
+  let freshDiscoveries: ArtistCategoryItem[] = [];
+  let dormantFavorites: ArtistCategoryItem[] = [];
+  let retentionRate = 50;
 
-  const loyalAnchors: ArtistCategoryItem[] = loyalSnaps.slice(0, 6).map((s) => ({
-    id: s.artist.id,
-    name: s.artist.name,
-    imageUrl: s.artist.imageUrl,
-    genres: JSON.parse(s.artist.genres || '[]'),
-    popularity: s.artist.popularity,
-  }));
+  if (timeRange === 'short_term') {
+    // 4 WEEKS: Measures fresh new discoveries entering active rotation vs long-term anchors
+    const loyalSnaps = shortArtists.filter((a) => longTermIds.has(a.artistId));
+    const freshSnaps = shortArtists.filter((a) => !longTermIds.has(a.artistId));
+    const dormantSnaps = longArtists.filter((a) => !shortTermIds.has(a.artistId));
 
-  const freshDiscoveries: ArtistCategoryItem[] = freshSnaps.slice(0, 6).map((s) => ({
-    id: s.artist.id,
-    name: s.artist.name,
-    imageUrl: s.artist.imageUrl,
-    genres: JSON.parse(s.artist.genres || '[]'),
-    popularity: s.artist.popularity,
-  }));
+    const shortTotal = shortArtists.length || 1;
+    loyaltyScore = Math.round((loyalSnaps.length / shortTotal) * 100);
+    discoveryScore = Math.round((freshSnaps.length / shortTotal) * 100);
+    retentionRate = longArtists.length > 0 ? Math.round((loyalSnaps.length / longArtists.length) * 100) : 0;
 
-  const dormantFavorites: ArtistCategoryItem[] = dormantSnaps.slice(0, 4).map((s) => ({
-    id: s.artist.id,
-    name: s.artist.name,
-    imageUrl: s.artist.imageUrl,
-    genres: JSON.parse(s.artist.genres || '[]'),
-    popularity: s.artist.popularity,
-  }));
+    loyalAnchors = loyalSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
 
-  const shortTotal = shortArtists.length || 1;
-  const loyaltyScore = Math.round((loyalSnaps.length / shortTotal) * 100);
-  const discoveryScore = Math.round((freshSnaps.length / shortTotal) * 100);
-  const retentionRate = longArtists.length > 0 ? Math.round((loyalSnaps.length / longArtists.length) * 100) : 50;
+    freshDiscoveries = freshSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+
+    dormantFavorites = dormantSnaps.slice(0, 4).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+  } else if (timeRange === 'medium_term') {
+    // 6 MONTHS: Measures 6-month seasonal phase discoveries vs 1-year baseline anchors
+    const loyalSnaps = mediumArtists.filter((a) => longTermIds.has(a.artistId));
+    const freshSnaps = mediumArtists.filter((a) => !longTermIds.has(a.artistId));
+    const dormantSnaps = longArtists.filter((a) => !mediumTermIds.has(a.artistId));
+
+    const mediumTotal = mediumArtists.length || 1;
+    loyaltyScore = Math.round((loyalSnaps.length / mediumTotal) * 100);
+    discoveryScore = Math.round((freshSnaps.length / mediumTotal) * 100);
+    retentionRate = longArtists.length > 0 ? Math.round((loyalSnaps.length / longArtists.length) * 100) : 0;
+
+    loyalAnchors = loyalSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+
+    freshDiscoveries = freshSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+
+    dormantFavorites = dormantSnaps.slice(0, 4).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+  } else {
+    // 1 YEAR (BASELINE): Measures core artist catalog concentration vs exploratory breadth within the year
+    const topTierCount = Math.min(10, Math.ceil(longArtists.length * 0.25));
+    const coreSnaps = longArtists.slice(0, topTierCount);
+    const tailSnaps = longArtists.slice(topTierCount);
+
+    const coreWeights = rankWeights.slice(0, topTierCount).reduce((a, b) => a + b, 0);
+    loyaltyScore = totalWeight > 0 ? Math.round((coreWeights / totalWeight) * 100) : 60;
+    discoveryScore = Math.max(0, 100 - loyaltyScore);
+    retentionRate = loyaltyScore;
+
+    loyalAnchors = coreSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+
+    freshDiscoveries = tailSnaps.slice(0, 6).map((s) => ({
+      id: s.artist.id,
+      name: s.artist.name,
+      imageUrl: s.artist.imageUrl,
+      genres: JSON.parse(s.artist.genres || '[]'),
+      popularity: s.artist.popularity,
+    }));
+
+    dormantFavorites = [];
+  }
 
   let loyaltySummary = 'You maintain a balanced relationship between trusted artists and new additions.';
   if (loyaltyScore >= 65) {
-    loyaltySummary = 'Your musical foundation is solid—you consistently revisit your long-term favorites.';
+    loyaltySummary = 'Your musical foundation is solid—you consistently revisit your core favorites.';
   } else if (loyaltyScore <= 35) {
-    loyaltySummary = 'Your recent listening has branched noticeably away from your historical core.';
+    loyaltySummary = 'Your listening has branched noticeably away from historical favorites.';
   }
 
   let discoverySummary = 'You periodically invite new artists into your rotation.';
@@ -612,7 +701,7 @@ export async function calculateFullTasteProfile(
   };
 
   // ──────────────────────────────────────────────────────────────────────────
-  // 5. NICHE VS MAINSTREAM (POPULARITY INDEX)
+  // 5. NICHE VS MAINSTREAM (POPULARITY INDEX for this period)
   // ──────────────────────────────────────────────────────────────────────────
   const artistsWithPop = effectiveArtists.filter((a) => a.artist.popularity !== null);
   const avgArtistPop =
