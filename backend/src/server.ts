@@ -16,6 +16,7 @@ declare module 'express-session' {
 import authRouter from './routes/auth';
 import meRouter from './routes/me';
 import analyticsRouter from './routes/analytics';
+import recommendationsRouter from './routes/recommendations';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './services/prisma';
 
@@ -91,6 +92,8 @@ app.use(
 app.use('/auth', authRouter);
 app.use('/api/me', meRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/recommendations', recommendationsRouter);
+
 
 // Health check
 app.get('/health', (_req, res) => {

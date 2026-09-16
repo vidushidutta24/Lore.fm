@@ -174,6 +174,110 @@ export async function getRecentlyPlayed(
   });
 }
 
+export async function getRecommendationsFromSeeds(
+  userId: string,
+  options: {
+    seedArtists?: string[];
+    seedGenres?: string[];
+    seedTracks?: string[];
+    limit?: number;
+    targetPopularity?: number;
+    minPopularity?: number;
+    maxPopularity?: number;
+  }
+): Promise<SpotifyTrack[]> {
+  const params: Record<string, string | number> = {
+    limit: options.limit ?? 20,
+  };
+
+  if (options.seedArtists && options.seedArtists.length > 0) {
+    params.seed_artists = options.seedArtists.slice(0, 5).join(',');
+  }
+  if (options.seedGenres && options.seedGenres.length > 0) {
+    params.seed_genres = options.seedGenres.slice(0, 5).join(',');
+  }
+  if (options.seedTracks && options.seedTracks.length > 0) {
+    params.seed_tracks = options.seedTracks.slice(0, 5).join(',');
+  }
+  if (options.targetPopularity !== undefined) {
+    params.target_popularity = options.targetPopularity;
+  }
+  if (options.minPopularity !== undefined) {
+    params.min_popularity = options.minPopularity;
+  }
+  if (options.maxPopularity !== undefined) {
+    params.max_popularity = options.maxPopularity;
+  }
+
+  try {
+    const res = await spotifyRequest<{ tracks: SpotifyTrack[] }>(userId, '/recommendations', params);
+    return res.tracks ?? [];
+  } catch (err) {
+    console.warn('[Spotify] /recommendations fallback warning:', (err as Error).message);
+    return [];
+  }
+}
+
+export async function getArtistRelatedArtists(
+  userId: string,
+  artistId: string
+): Promise<SpotifyArtist[]> {
+  try {
+    const res = await spotifyRequest<{ artists: SpotifyArtist[] }>(
+      userId,
+      `/artists/${artistId}/related-artists`
+    );
+    return res.artists ?? [];
+  } catch (err) {
+    console.warn(`[Spotify] /artists/${artistId}/related-artists warning:`, (err as Error).message);
+    return [];
+  }
+}
+
+export async function getArtistTopTracks(
+  userId: string,
+  artistId: string,
+  market = 'US'
+): Promise<SpotifyTrack[]> {
+  try {
+    const res = await spotifyRequest<{ tracks: SpotifyTrack[] }>(
+      userId,
+      `/artists/${artistId}/top-tracks`,
+      { market }
+    );
+    return res.tracks ?? [];
+  } catch (err) {
+    console.warn(`[Spotify] /artists/${artistId}/top-tracks warning:`, (err as Error).message);
+    return [];
+  }
+}
+
+export async function searchSpotify(
+  userId: string,
+  query: string,
+  type: 'track' | 'artist' | 'track,artist' = 'track',
+  limit = 20
+): Promise<{ tracks?: SpotifyTrack[]; artists?: SpotifyArtist[] }> {
+  try {
+    const res = await spotifyRequest<{
+      tracks?: { items: SpotifyTrack[] };
+      artists?: { items: SpotifyArtist[] };
+    }>(userId, '/search', {
+      q: query,
+      type,
+      limit,
+    });
+    return {
+      tracks: res.tracks?.items ?? [],
+      artists: res.artists?.items ?? [],
+    };
+  } catch (err) {
+    console.warn(`[Spotify] search "${query}" warning:`, (err as Error).message);
+    return { tracks: [], artists: [] };
+  }
+}
+
+
 // ─── Data Normalization & Persistence ────────────────────────────────────────
 
 /**

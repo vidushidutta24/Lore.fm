@@ -116,3 +116,30 @@ export interface SpotifyTokenResponse {
 }
 
 export type TimeRange = 'short_term' | 'medium_term' | 'long_term';
+
+export interface SpotifyRecommendationsResponse {
+  tracks: SpotifyTrack[];
+  seeds: {
+    initialPoolSize: number;
+    afterFilteringSize: number;
+    afterRelinkingSize: number;
+    id: string;
+    type: string;
+    href: string;
+  }[];
+}
+
+export interface SpotifyRelatedArtistsResponse {
+  artists: SpotifyArtist[];
+}
+
+export interface SpotifySearchResponse {
+  tracks?: {
+    items: SpotifyTrack[];
+    total: number;
+  };
+  artists?: {
+    items: SpotifyArtist[];
+    total: number;
+  };
+}
