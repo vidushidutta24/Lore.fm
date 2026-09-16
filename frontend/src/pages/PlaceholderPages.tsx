@@ -47,17 +47,6 @@ function PlaceholderPage({ icon, title, description, phase }: PlaceholderPagePro
   );
 }
 
-export function TimelinePage() {
-  return (
-    <PlaceholderPage
-      icon="📅"
-      title="Taste Timeline"
-      description="A visual journey through how your music taste has changed over time. See which artists defined each chapter of your listening history."
-      phase="Phase 2"
-    />
-  );
-}
-
 export function DiscoverPage() {
   return (
     <PlaceholderPage

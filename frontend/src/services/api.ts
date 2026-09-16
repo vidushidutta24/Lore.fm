@@ -9,6 +9,7 @@ import type {
   OverviewStats,
   TasteProfile,
   TasteAIResponse,
+  TimelineData,
   TimeRange,
   User,
 } from '../types';
@@ -111,6 +112,11 @@ export const analyticsApi = {
 
   tasteAI: async (): Promise<TasteAIResponse> => {
     const res = await api.get<TasteAIResponse>('/api/analytics/taste-ai');
+    return res.data;
+  },
+
+  timeline: async (): Promise<TimelineData> => {
+    const res = await api.get<TimelineData>('/api/analytics/timeline');
     return res.data;
   },
 };

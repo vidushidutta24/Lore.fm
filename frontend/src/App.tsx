@@ -7,8 +7,8 @@ import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { ListeningPage } from './pages/ListeningPage';
 import { TastePage } from './pages/TastePage';
+import { TimelinePage } from './pages/TimelinePage';
 import {
-  TimelinePage,
   DiscoverPage,
   StoryPage,
   AssistantPage,

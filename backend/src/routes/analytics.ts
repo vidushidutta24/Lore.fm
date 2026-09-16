@@ -6,6 +6,7 @@ import {
 } from '../analytics/engine';
 import { calculateFullTasteProfile } from '../analytics/tasteEngine';
 import { buildMultiPeriodTasteContext } from '../analytics/multiPeriodEngine';
+import { calculateTimelineJourney } from '../analytics/timelineEngine';
 import { generateTasteAIInterpretation } from '../services/aiService';
 import type { TimeRange } from '../types/spotify';
 
@@ -76,5 +77,18 @@ router.get('/taste-ai', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
+// ─── GET /api/analytics/timeline — Top 5 Artist Journeys & Year-Long Timeline ───
+
+router.get('/timeline', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.session.userId!;
+    const timelineData = await calculateTimelineJourney(userId);
+    res.json(timelineData);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
+
 

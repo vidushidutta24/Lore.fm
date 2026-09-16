@@ -462,3 +462,141 @@ export interface TasteAIResponse {
   interpretation: AIInterpretation;
 }
 
+// ─── Timeline & Top 5 Artist Journey Types ────────────────────────────────────
+
+export interface ArtistTopSong {
+  id: string;
+  title: string;
+  albumName: string;
+  albumImageUrl: string | null;
+  releaseDate: string | null;
+  releaseYear: string | null;
+  durationMs: number;
+  userBestRank: {
+    rank: number;
+    period: 'short_term' | 'medium_term' | 'long_term';
+    periodLabel: string;
+  } | null;
+  previewUrl: string | null;
+  spotifyUrl: string | null;
+  explicit: boolean;
+  recordedPlays: number;
+  allTimeRank?: number;
+  allTimeListenScore?: number;
+}
+
+export interface PeakListeningDay {
+  hasRecordedDay: boolean;
+  date: string | null;
+  dateFormatted: string | null;
+  playCount: number;
+  topTrackName: string | null;
+  transparencyNote: string;
+}
+
+export interface ArtistRankNode {
+  era: '1_year' | '6_months' | '4_weeks';
+  label: string;
+  rank: number | null;
+  isRanked: boolean;
+}
+
+export interface ArtistJourney {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  genres: string[];
+  spotifyUrl: string | null;
+  currentRank: number;
+  longTermRank: number | null;
+  mediumTermRank: number | null;
+  shortTermRank: number | null;
+  trajectoryType:
+    | 'longstanding_anchor'
+    | 'rising_sensation'
+    | 'recent_obsession'
+    | 'historical_pillar'
+    | 'resurgent_favorite'
+    | 'consistent_staple';
+  trajectoryLabel: string;
+  trajectoryDescription: string;
+  prominenceMilestone: {
+    eraDetected: string;
+    firstRecordedRank: number | null;
+    peakRank: number;
+    peakEraLabel: string;
+    description: string;
+  };
+  peakListeningDay: PeakListeningDay;
+  listeningTrend: {
+    direction: 'rising' | 'peaking' | 'steady' | 'cooling' | 'new';
+    directionLabel: string;
+    momentumDelta: number;
+    summary: string;
+    rankNodes: ArtistRankNode[];
+  };
+  topSongs: ArtistTopSong[];
+  historicalImportance: {
+    score: number;
+    tier: 'Core Musical Pillar' | 'Era Defining' | 'Heavy Rotation Staple' | 'Breakout Star' | 'Emerging Favorite';
+    topTracksCount: number;
+    erasPresentCount: number;
+    primaryGenre: string | null;
+    summary: string;
+  };
+  storyNarrative: {
+    headline: string;
+    chapterTitle: string;
+    narrative: string;
+    keyHighlight: string;
+  };
+}
+
+export interface TimelineEraSummary {
+  eraKey: '1_year' | '6_months' | '4_weeks';
+  title: string;
+  timeframe: string;
+  subtitle: string;
+  top5Artists: {
+    rank: number;
+    id: string;
+    name: string;
+    imageUrl: string | null;
+    genres: string[];
+  }[];
+  dominantGenres: string[];
+  atmosphere: string;
+}
+
+export interface TimelineMilestone {
+  id: string;
+  title: string;
+  artistName: string;
+  artistImageUrl: string | null;
+  type: 'rank_peak' | 'new_entry' | 'enduring_anchor' | 'major_surge' | 'era_leader';
+  description: string;
+  era: '1_year' | '6_months' | '4_weeks';
+  eraLabel: string;
+}
+
+export interface TimelineData {
+  userId: string;
+  generatedAt: string;
+  top5Artists: ArtistJourney[];
+  overallTimeline: {
+    eras: TimelineEraSummary[];
+    milestones: TimelineMilestone[];
+    crossEraSummary: string;
+  };
+  dataProvenance: {
+    shortTermArtistsSampled: number;
+    mediumTermArtistsSampled: number;
+    longTermArtistsSampled: number;
+    totalTracksAnalyzed: number;
+    listeningEventsCount: number;
+    hasContinuousHistory: boolean;
+    notice: string;
+  };
+}
+
+

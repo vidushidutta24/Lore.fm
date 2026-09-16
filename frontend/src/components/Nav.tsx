@@ -18,7 +18,7 @@ const NAV_ITEMS: Omit<NavItem, 'active'>[] = [
   { path: '/assistant', label: 'Assistant', icon: '🤖' },
 ];
 
-const PLACEHOLDER_PATHS = ['/timeline', '/discover', '/story', '/assistant'];
+const PLACEHOLDER_PATHS = ['/discover', '/story', '/assistant'];
 
 export function Nav() {
   const { user, logout } = useAuth();
