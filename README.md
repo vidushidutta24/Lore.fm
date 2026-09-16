@@ -90,6 +90,39 @@ Example:
 
 Highlight major artists, genres, and noticeable changes.
 
+🔮 Lore Wrapped — Yearly Wrapped Predictor
+
+Predict what the user's Spotify Wrapped may look like based on their
+listening data throughout the year.
+
+The feature should estimate:
+
+Potential #1 artist
+
+Potential #1 song
+
+Top artists
+
+Top genres
+
+Estimated listening minutes
+
+Artists or songs currently trending toward the user's Wrapped
+
+Changes in predictions as listening behavior changes
+
+The predictor should use actual listening data and transparent calculations.
+It should not pretend to know Spotify's final Wrapped results.
+
+Where appropriate, show prediction confidence based on the stability and
+strength of the available listening trends.
+
+The prediction should update as new listening data is collected.
+
+AI can be used to explain the predictions in a playful, personalized way,
+but the underlying predictions should come from the application's
+calculation engine rather than being invented by the AI.
+
 🔮 Personalized Discovery
 
 Recommend: - Songs - Artists - Genres - Similar music - Music outside
@@ -126,6 +159,7 @@ Dashboard   Current overview of the user's music
 Listening   Tracks, artists, albums, and recent listening
 Taste       Music DNA and genre analysis
 Timeline    Evolution of music taste
+Wrapped     Predicted yearly Spotify Wrapped
 Discover    Personalized recommendations
 Story       Playful music-based life story
 Assistant   Personalized music interaction
@@ -245,6 +279,10 @@ data or transparent calculations based on that data.
 🌱 Future Ideas
 
 Potential future additions:
+
+Lore Wrapped — yearly Spotify Wrapped prediction
+
+Wrapped trend tracking and confidence changes
 
 Listening streaks
 
