@@ -64,50 +64,57 @@ export function GenreProfileCard({ data }: GenreProfileCardProps) {
       )}
 
       {/* Genre Distribution Bars */}
-      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
-        {data.distribution.slice(0, 10).map((item, index) => {
-          const widthPct = Math.max((item.count / maxCount) * 100, 8);
-          const formattedName = item.genre.charAt(0).toUpperCase() + item.genre.slice(1);
+      {data.distribution.length > 0 ? (
+        <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+          {data.distribution.slice(0, 10).map((item, index) => {
+            const widthPct = Math.max((item.count / maxCount) * 100, 8);
+            const formattedName = item.genre.charAt(0).toUpperCase() + item.genre.slice(1);
 
-          return (
-            <motion.div
-              key={item.genre}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.03 }}
-              className="flex items-center gap-3 text-xs"
-            >
-              <div className="w-28 sm:w-36 flex-shrink-0 text-right">
-                <span className="font-medium text-slate-300 truncate block" title={formattedName}>
-                  {formattedName}
+            return (
+              <motion.div
+                key={item.genre}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className="flex items-center gap-3 text-xs"
+              >
+                <div className="w-28 sm:w-36 flex-shrink-0 text-right">
+                  <span className="font-medium text-slate-300 truncate block" title={formattedName}>
+                    {formattedName}
+                  </span>
+                </div>
+
+                <div className="flex-1 h-5 rounded-full bg-white/5 overflow-hidden flex items-center">
+                  <motion.div
+                    className="h-full rounded-full flex items-center px-2"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${widthPct}%` }}
+                    transition={{ duration: 0.6, delay: index * 0.03 + 0.1 }}
+                    style={{
+                      background: 'linear-gradient(90deg, #7c3aed 0%, #3b82f6 100%)',
+                    }}
+                  >
+                    {widthPct > 25 && (
+                      <span className="text-[10px] font-bold text-white whitespace-nowrap">
+                        {item.percentage}%
+                      </span>
+                    )}
+                  </motion.div>
+                </div>
+
+                <span className="w-8 text-right font-mono text-slate-400 tabular-nums">
+                  {item.count}
                 </span>
-              </div>
-
-              <div className="flex-1 h-5 rounded-full bg-white/5 overflow-hidden flex items-center">
-                <motion.div
-                  className="h-full rounded-full flex items-center px-2"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${widthPct}%` }}
-                  transition={{ duration: 0.6, delay: index * 0.03 + 0.1 }}
-                  style={{
-                    background: 'linear-gradient(90deg, #7c3aed 0%, #3b82f6 100%)',
-                  }}
-                >
-                  {widthPct > 25 && (
-                    <span className="text-[10px] font-bold text-white whitespace-nowrap">
-                      {item.percentage}%
-                    </span>
-                  )}
-                </motion.div>
-              </div>
-
-              <span className="w-8 text-right font-mono text-slate-400 tabular-nums">
-                {item.count}
-              </span>
-            </motion.div>
-          );
-        })}
-      </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-center text-xs text-slate-400">
+          <p>No direct genre tags provided by Spotify for this period's top artists.</p>
+          <p className="text-[11px] text-slate-500 mt-1">Diversity is computed directly across your unique artist catalog.</p>
+        </div>
+      )}
 
       {/* Observation Box */}
       <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between text-xs">

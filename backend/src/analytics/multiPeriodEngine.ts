@@ -49,6 +49,10 @@ export interface PeriodSummary {
     percentage: number;
   }[];
   musicalCharacteristics: MusicalCharacteristics;
+  /** True only if Spotify returned genre tags for this period's artists */
+  hasGenreData: boolean;
+  /** Number of unique genres identified for this period (0 = none returned by Spotify) */
+  totalUniqueGenres: number;
 }
 
 export interface MetricDelta {
@@ -78,6 +82,19 @@ export interface TasteAnalysisContext {
     artistsSampled: number;
     tracksSampled: number;
     periodsAvailable: number;
+  };
+  /**
+   * Explicit flags so the AI knows what is real vs. unavailable.
+   * Never let Gemini infer or invent data for fields marked false.
+   */
+  dataAvailability: {
+    hasCurrentGenreData: boolean;
+    hasRecentGenreData: boolean;
+    hasYearlyGenreData: boolean;
+    hasCurrentArtistData: boolean;
+    hasRecentArtistData: boolean;
+    hasYearlyArtistData: boolean;
+    hasTrajectoryData: boolean;
   };
   current: PeriodSummary;
   recent: PeriodSummary;
@@ -258,6 +275,9 @@ function extractPeriodSummary(
     profile.nicheIndex.averagePopularity
   );
 
+  const genreDistribution = profile.genreProfile.distribution.slice(0, 6);
+  const hasGenreData = genreDistribution.length > 0 && genreDistribution.some((g) => g.count > 0);
+
   return {
     period,
     periodLabel: label,
@@ -279,11 +299,12 @@ function extractPeriodSummary(
       genres: [],
       popularity: null,
     })),
-    topGenres: profile.genreProfile.distribution.slice(0, 6).map((g) => ({
-      genre: g.genre,
-      percentage: g.percentage,
-    })),
+    topGenres: hasGenreData
+      ? genreDistribution.map((g) => ({ genre: g.genre, percentage: g.percentage }))
+      : [],
     musicalCharacteristics,
+    hasGenreData,
+    totalUniqueGenres: hasGenreData ? profile.genreProfile.totalUniqueGenres : 0,
   };
 }
 
@@ -408,6 +429,9 @@ export async function buildMultiPeriodTasteContext(userId: string): Promise<Tast
     shortProfile.artistDiversity.uniqueArtistCount > 0 ||
     mediumProfile.artistDiversity.uniqueArtistCount > 0;
 
+  const hasTrajectoryData =
+    emergingArtists.length > 0 || decliningArtists.length > 0 || coreAnchors.length > 0;
+
   return {
     userId,
     generatedAt: new Date().toISOString(),
@@ -416,6 +440,15 @@ export async function buildMultiPeriodTasteContext(userId: string): Promise<Tast
       artistsSampled: shortProfile.transparencyReport.artistsSampled,
       tracksSampled: shortProfile.transparencyReport.tracksSampled,
       periodsAvailable: 3,
+    },
+    dataAvailability: {
+      hasCurrentGenreData: current.hasGenreData,
+      hasRecentGenreData: recent.hasGenreData,
+      hasYearlyGenreData: yearly.hasGenreData,
+      hasCurrentArtistData: current.topArtists.length > 0,
+      hasRecentArtistData: recent.topArtists.length > 0,
+      hasYearlyArtistData: yearly.topArtists.length > 0,
+      hasTrajectoryData,
     },
     current,
     recent,

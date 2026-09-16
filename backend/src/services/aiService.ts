@@ -1,14 +1,14 @@
-/**
+﻿/**
  * AI Interpretation Service
  *
  * Provides a clean adapter layer for interpreting music analytics into
- * personalized, music-focused natural language narratives.
+ * personalized, longitudinal natural language narratives.
  *
  * Features:
- * - Anti-hallucination grounding: strictly anchored to real calculated context.
- * - Non-psychological musical framing: discusses arrangement, tone, tempo, and genres.
- * - Pluggable LLM integration: Google Gemini / OpenAI / Custom REST via AI_API_KEY.
- * - High-precision deterministic fallback when AI key is absent or unreachable.
+ * - Evidence-based longitudinal analysis: compares 4W vs 6M vs 1Y timeframes
+ * - Anti-hallucination grounding: pre-digested structured facts sent to LLM
+ * - Data availability flags: AI never invents missing genre/artist data
+ * - Graceful deterministic fallback when AI key is absent or unreachable
  */
 
 import axios from 'axios';
@@ -60,216 +60,365 @@ export interface AIInterpretationResponse {
   };
 }
 
-// ─── Deterministic Analytical Synthesizer (Fallback & Baseline) ──────────────
+// ─── Deterministic Longitudinal Synthesizer (Fallback) ──────────────────────
 
 function generateDeterministicInterpretation(
   context: TasteAnalysisContext
 ): AIInterpretationResponse {
-  const { current, recent, yearly, metricDeltas, trajectory } = context;
+  const { current, recent, yearly, metricDeltas, trajectory, dataAvailability } = context;
 
-  const currentTopGenresStr = current.topGenres.map((g) => g.genre).slice(0, 3).join(', ') || 'eclectic styles';
-  const yearlyTopGenresStr = yearly.topGenres.map((g) => g.genre).slice(0, 3).join(', ') || 'varied catalog';
-  const currentArtistsStr = current.topArtists.map((a) => a.name).slice(0, 4).join(', ') || 'active rotation';
+  const currentArtists = dataAvailability.hasCurrentArtistData
+    ? current.topArtists.slice(0, 5).map((a) => a.name)
+    : [];
+  const recentArtists = dataAvailability.hasRecentArtistData
+    ? recent.topArtists.slice(0, 5).map((a) => a.name)
+    : [];
+  const yearlyArtists = dataAvailability.hasYearlyArtistData
+    ? yearly.topArtists.slice(0, 5).map((a) => a.name)
+    : [];
+
+  const currentGenres = dataAvailability.hasCurrentGenreData
+    ? current.topGenres.slice(0, 3).map((g) => g.genre)
+    : [];
+  const yearlyGenres = dataAvailability.hasYearlyGenreData
+    ? yearly.topGenres.slice(0, 3).map((g) => g.genre)
+    : [];
+
   const emergingArtistsStr = trajectory.emergingArtists.slice(0, 3).join(', ');
-  const risingGenresStr = trajectory.risingGenres.slice(0, 2).join(' and ');
+  const decliningArtistsStr = trajectory.decliningArtists.slice(0, 3).join(', ');
   const coreAnchorsStr = trajectory.coreAnchors.slice(0, 3).join(', ');
+  const risingGenresStr = trajectory.risingGenres.slice(0, 2).join(' and ');
+  const fadingGenresStr = trajectory.fadingGenres.slice(0, 2).join(' and ');
 
   // 1. Where taste is heading
-  const headingNarrative = risingGenresStr
-    ? `Your listening has been steadily tilting toward ${risingGenresStr}. While your yearly rotation was anchored around ${yearlyTopGenresStr}, the last four weeks show accelerated momentum into newer sonic territory${
-        emergingArtistsStr ? `, spearheaded by artists like ${emergingArtistsStr}` : ''
-      }.`
-    : `Your listening maintains steady continuity around ${currentTopGenresStr}, with consistent depth across your core artists rather than sudden genre pivots.`;
+  let headlineText = 'Consistent Musical Direction';
+  let headingNarrative = `Your listening has stayed remarkably consistent. The same core artists populate your 4-week rotation as they did over the past year.`;
+
+  if (emergingArtistsStr && risingGenresStr) {
+    headlineText = `Shifting toward ${risingGenresStr}`;
+    headingNarrative = `Over the last year your base was ${yearlyGenres.length > 0 ? yearlyGenres.join(', ') : 'eclectic'}, but your current 4-week rotation shows a clear pivot: ${emergingArtistsStr} have entered as fresh entrants, and ${risingGenresStr} is gaining a stronger foothold.`;
+  } else if (emergingArtistsStr) {
+    headlineText = `New Artists Breaking Into Your Rotation`;
+    headingNarrative = `Your 4-week rotation has welcomed new faces: ${emergingArtistsStr}. These artists weren't part of your 1-year baseline, suggesting active exploration even with a stable genre palette.`;
+  } else if (risingGenresStr) {
+    headlineText = `Rising Genre Momentum: ${risingGenresStr}`;
+    headingNarrative = `${risingGenresStr} is taking up a larger share of your recent listening compared to your yearly baseline, pointing to a clear directional genre shift.`;
+  }
 
   // 2. How taste has changed
   const diversityChange = metricDeltas.artistDiversity.netChange;
   const loyaltyChange = metricDeltas.loyalty.netChange;
-  let primaryShift = 'Balanced evolutionary listening';
+  const discoveryChange = metricDeltas.discovery.netChange;
 
-  if (diversityChange > 8) {
-    primaryShift = 'Noticeable exploratory expansion across a wider artist roster';
-  } else if (diversityChange < -8) {
-    primaryShift = 'Stronger concentration and deeper focus into a dedicated circle of favorites';
-  } else if (loyaltyChange > 8) {
-    primaryShift = 'Deepening loyalty to familiar catalog staples';
+  let primaryShift = 'Stable listening habits with no major directional change year-over-year.';
+  if (diversityChange > 10) {
+    primaryShift = `Significant expansion — artist diversity rose ${metricDeltas.artistDiversity.yearly} → ${metricDeltas.artistDiversity.current}, meaning you are exploring a noticeably wider range of artists than a year ago.`;
+  } else if (diversityChange < -10) {
+    primaryShift = `Increasing concentration — artist diversity fell ${metricDeltas.artistDiversity.yearly} → ${metricDeltas.artistDiversity.current}, your rotation has narrowed to a tighter circle of core favorites.`;
+  } else if (loyaltyChange > 10) {
+    primaryShift = `Growing loyalty — loyalty score rose ${metricDeltas.loyalty.yearly} → ${metricDeltas.loyalty.current}, you are returning to familiar artists more frequently than before.`;
+  } else if (discoveryChange > 10) {
+    primaryShift = `Accelerating discovery — discovery rate jumped ${metricDeltas.discovery.yearly} → ${metricDeltas.discovery.current}, you are bringing in new artists faster than your yearly baseline.`;
+  } else if (discoveryChange < -10) {
+    primaryShift = `Slower discovery — discovery rate dropped ${metricDeltas.discovery.yearly} → ${metricDeltas.discovery.current}, new artist additions have slowed compared to your yearly baseline.`;
   }
 
-  const comparisonNarrative = `Over the past year, your artist diversity moved from ${yearly.metrics.artistDiversity} to ${current.metrics.artistDiversity} in the last 4 weeks. ${
-    diversityChange > 0
-      ? "You've branched out into fresh musical landscapes without abandoning your anchor catalog."
-      : "You've settled into a more intimate, focused rotation with repeated visits to your top tracks."
-  }`;
+  const yearlyArtistsStr = yearlyArtists.length > 0 ? yearlyArtists.join(', ') : 'your historical core';
+  const currentArtistsStr = currentArtists.length > 0 ? currentArtists.join(', ') : 'your current rotation';
+
+  const comparisonNarrative =
+    `A year ago, your top artists were ${yearlyArtistsStr}. ` +
+    `Today your 4-week rotation centers around ${currentArtistsStr}. ` +
+    (coreAnchorsStr ? `${coreAnchorsStr} have persisted across all three timeframes as loyal anchors. ` : '') +
+    (decliningArtistsStr
+      ? `Meanwhile, ${decliningArtistsStr} featured heavily in your yearly baseline but are less present now.`
+      : 'Your yearly favorites have largely carried through to your current rotation.');
 
   // 3. Musical mood and tone
   const energyDelta = metricDeltas.energy.netChange;
+  const tempoDelta = metricDeltas.tempo.netChange;
   const acousticDelta = metricDeltas.acousticness.netChange;
 
-  let toneShiftExplanation = `Your recent soundscape sits at an average tempo of ${current.musicalCharacteristics.tempo} BPM with an energy rating of ${current.musicalCharacteristics.energy}/100.`;
-  if (energyDelta > 8) {
-    toneShiftExplanation += ` Compared to your yearly average, your recent rotation has gained punch and driving momentum, leaning into higher-energy production.`;
-  } else if (energyDelta < -8) {
-    toneShiftExplanation += ` Compared to your yearly baseline, your recent sessions have noticeably mellowed out, favoring introspective, organic, or acoustic arrangements.`;
-  } else if (acousticDelta > 8) {
-    toneShiftExplanation += ` Acoustic and textured instrumentation has taken a more prominent seat in your current sound.`;
+  let toneShiftExplanation = `Currently your listening sits at ~${current.musicalCharacteristics.tempo} BPM with an energy level of ${current.musicalCharacteristics.energy}/100. `;
+  if (Math.abs(energyDelta) > 5 || Math.abs(tempoDelta) > 5 || Math.abs(acousticDelta) > 5) {
+    toneShiftExplanation +=
+      `Compared to your 1-year baseline (${yearly.musicalCharacteristics.energy} energy, ${yearly.musicalCharacteristics.tempo} BPM), ` +
+      (energyDelta > 5 ? 'your music has gotten more energetic. ' :
+       energyDelta < -5 ? 'the energy has mellowed — you are leaning into softer arrangements. ' : '') +
+      (tempoDelta > 5 ? `Tempo has risen +${tempoDelta} BPM, pushing toward faster-paced production. ` :
+       tempoDelta < -5 ? `Tempo has dropped ${tempoDelta} BPM, toward a more relaxed sonic environment. ` : '') +
+      (acousticDelta > 8 ? 'Acoustic texture is notably more prominent now. ' :
+       acousticDelta < -8 ? 'The sound has shifted away from acoustic toward more produced/electronic arrangements. ' : '');
   } else {
-    toneShiftExplanation += ` The energetic balance has stayed remarkably uniform throughout the year.`;
+    toneShiftExplanation += `Your sonic environment has stayed consistent — energy, tempo, and acoustic texture all shifted by less than 5 points across the year.`;
   }
 
-  // 4. Current Sound Identity
-  const identityStatement = `Right now, your sound gravitates around ${currentTopGenresStr}. You balance established favorites with newer spins, creating a ${current.musicalCharacteristics.atmosphere.toLowerCase()} atmosphere.`;
+  // 4. Current sound identity
+  const identityStatement = currentArtists.length > 0 || currentGenres.length > 0
+    ? `Right now your listening is defined by ${currentArtists.length > 0 ? currentArtists.slice(0, 3).join(', ') : 'your current rotation'}${currentGenres.length > 0 ? `, rooted in ${currentGenres.join(', ')}` : ''}. The overall atmosphere is ${current.musicalCharacteristics.atmosphere.toLowerCase()}.`
+    : `Your current listening has a ${current.musicalCharacteristics.atmosphere.toLowerCase()} character, with energy at ${current.musicalCharacteristics.energy}/100 and tempo around ${current.musicalCharacteristics.tempo} BPM.`;
 
-  // 5. Your Taste Explained
-  const narrativeIntro = `Your music profile is defined by ${current.archetype.title} tendencies—anchored by ${currentTopGenresStr} in the present and framed by a broader history of ${yearlyTopGenresStr}.`;
-  const recentVsLong = `Across the last 6 months (${recent.topGenres.map((g) => g.genre).slice(0, 2).join(', ')}), you transitioned smoothly into your current 4-week phase. ${
-    emergingArtistsStr
-      ? `Fresh entrants like ${emergingArtistsStr} have quickly claimed top rotation spots.`
-      : `Longstanding artists remain at the center of your daily sessions.`
-  }`;
-  const varietyConcentration = `Your artist diversity index stands at ${current.metrics.artistDiversity}/100 and genre diversity at ${current.metrics.genreDiversity}/100. ${
-    trajectory.coreAnchors.length > 0
-      ? `Artists like ${coreAnchorsStr} serve as the enduring bedrock of your listening.`
-      : ''
-  }`;
-  const patterns = `Your discovery rate is currently calculated at ${current.metrics.discoveryRate}/100 with an artist loyalty score of ${current.metrics.loyaltyScore}/100.`;
-  const closingSynthesis = `Overall, your musical trajectory is characterized by authentic intentionality—whether diving deep into specific favorite discs or exploring the fringes of ${currentTopGenresStr}.`;
+  // 5. Full longitudinal narrative
+  const introduction =
+    (yearlyArtists.length > 0
+      ? `Your 1-year baseline was anchored by ${yearlyArtists.slice(0, 3).join(', ')}.`
+      : 'Your 1-year baseline established your core sound.') +
+    (recentArtists.length > 0
+      ? ` By the 6-month mark, ${recentArtists.slice(0, 3).join(', ')} were central to your rotation.`
+      : '') +
+    (currentArtists.length > 0
+      ? ` Today your 4-week sound is led by ${currentArtists.slice(0, 3).join(', ')}.`
+      : '');
+
+  const recentVsLong =
+    (coreAnchorsStr
+      ? `Consistent anchors across all three periods: ${coreAnchorsStr}. `
+      : 'No single artist appeared in all three timeframes. ') +
+    (emergingArtistsStr
+      ? `New entrants in your 4-week rotation not in your yearly baseline: ${emergingArtistsStr}. `
+      : '') +
+    (decliningArtistsStr
+      ? `Artists from your yearly baseline that have dropped away: ${decliningArtistsStr}.`
+      : 'Your yearly favorites have mostly carried through to your current rotation.');
+
+  const genreDiversityNote = dataAvailability.hasCurrentGenreData
+    ? `Artist diversity moved from ${metricDeltas.artistDiversity.yearly}/100 (1Y) to ${metricDeltas.artistDiversity.current}/100 (4W). ${diversityChange > 0 ? "You're listening to a broader range of artists than a year ago." : diversityChange < 0 ? 'Your rotation has become more concentrated.' : 'Artist breadth has been consistent.'} Genre diversity: ${metricDeltas.genreDiversity.yearly} (1Y) → ${metricDeltas.genreDiversity.current} (4W).`
+    : `Artist diversity moved from ${metricDeltas.artistDiversity.yearly}/100 (1Y) to ${metricDeltas.artistDiversity.current}/100 (4W). Genre data was not returned by Spotify for this period, so genre diversity comparison is not available.`;
+
+  const loyaltyNote =
+    `Discovery rate: ${current.metrics.discoveryRate}/100 (now) vs. ${yearly.metrics.discoveryRate}/100 (1Y). ` +
+    `Loyalty score: ${current.metrics.loyaltyScore}/100 (now) vs. ${yearly.metrics.loyaltyScore}/100 (1Y). ` +
+    (trajectory.coreAnchors.length > 0
+      ? `You have ${trajectory.coreAnchors.length} long-term anchor artist(s) that have remained constant across all periods.`
+      : 'Your listening circle has turned over significantly since a year ago.');
+
+  const closingSynthesis =
+    primaryShift + ' ' +
+    (risingGenresStr
+      ? `The clearest directional signal is the rise of ${risingGenresStr} in your recent listening.`
+      : fadingGenresStr
+      ? `Genres like ${fadingGenresStr} have receded, making room for newer sounds.`
+      : 'Your taste remains a coherent, intentional thread rather than a restless search.');
 
   return {
     whereTasteIsHeading: {
-      headline: risingGenresStr ? `Momentum toward ${risingGenresStr}` : 'Consolidated Musical Direction',
+      headline: headlineText,
       narrative: headingNarrative,
       keyDrivers: trajectory.emergingArtists.slice(0, 4),
-      emergingFocus: risingGenresStr || current.topGenres[0]?.genre || 'Contemporary Soundscapes',
+      emergingFocus: risingGenresStr || (currentGenres.length > 0 ? currentGenres[0] : 'Consistent sonic profile'),
     },
     howTasteHasChanged: {
-      headline: `Evolution from 1-Year Baseline to 4-Week Rotation`,
+      headline: 'Longitudinal Shift: 1-Year Baseline → 4-Week Rotation',
       comparisonNarrative,
       primaryShift,
       metricHighlights: [
         {
           label: 'Artist Diversity',
-          change: `${yearly.metrics.artistDiversity} → ${recent.metrics.artistDiversity} → ${current.metrics.artistDiversity}`,
+          change: `1Y ${metricDeltas.artistDiversity.yearly} → 6M ${metricDeltas.artistDiversity.recent} → 4W ${metricDeltas.artistDiversity.current}`,
           interpretation: metricDeltas.artistDiversity.interpretation,
         },
         {
           label: 'Genre Diversity',
-          change: `${yearly.metrics.genreDiversity} → ${recent.metrics.genreDiversity} → ${current.metrics.genreDiversity}`,
-          interpretation: metricDeltas.genreDiversity.interpretation,
+          change: dataAvailability.hasCurrentGenreData
+            ? `1Y ${metricDeltas.genreDiversity.yearly} → 6M ${metricDeltas.genreDiversity.recent} → 4W ${metricDeltas.genreDiversity.current}`
+            : 'Data not available for this period',
+          interpretation: dataAvailability.hasCurrentGenreData
+            ? metricDeltas.genreDiversity.interpretation
+            : 'Spotify did not return genre tags for your top artists in this period.',
         },
         {
           label: 'Discovery Rate',
-          change: `${yearly.metrics.discoveryRate} → ${recent.metrics.discoveryRate} → ${current.metrics.discoveryRate}`,
+          change: `1Y ${metricDeltas.discovery.yearly} → 6M ${metricDeltas.discovery.recent} → 4W ${metricDeltas.discovery.current}`,
           interpretation: metricDeltas.discovery.interpretation,
         },
         {
           label: 'Artist Loyalty',
-          change: `${yearly.metrics.loyaltyScore} → ${recent.metrics.loyaltyScore} → ${current.metrics.loyaltyScore}`,
+          change: `1Y ${metricDeltas.loyalty.yearly} → 6M ${metricDeltas.loyalty.recent} → 4W ${metricDeltas.loyalty.current}`,
           interpretation: metricDeltas.loyalty.interpretation,
         },
       ],
     },
     musicalMoodAndTone: {
       headline: current.musicalCharacteristics.atmosphere,
-      currentSoundscape: `Dominant tone: ${current.musicalCharacteristics.atmosphere}. Energy: ${current.musicalCharacteristics.energy}/100 | Tempo: ~${current.musicalCharacteristics.tempo} BPM | Acoustic: ${current.musicalCharacteristics.acousticness}/100.`,
+      currentSoundscape: `Energy: ${current.musicalCharacteristics.energy}/100 | Tempo: ~${current.musicalCharacteristics.tempo} BPM | Acousticness: ${current.musicalCharacteristics.acousticness}/100 | Danceability: ${current.musicalCharacteristics.danceability}/100`,
       toneShiftExplanation,
-      energyTempoAnalysis: `Energy shifted from ${yearly.musicalCharacteristics.energy} (1Y) to ${current.musicalCharacteristics.energy} (4W); Tempo shifted from ${yearly.musicalCharacteristics.tempo} BPM to ${current.musicalCharacteristics.tempo} BPM.`,
+      energyTempoAnalysis: `Energy: ${yearly.musicalCharacteristics.energy} (1Y) → ${recent.musicalCharacteristics.energy} (6M) → ${current.musicalCharacteristics.energy} (4W) | Tempo: ${yearly.musicalCharacteristics.tempo} → ${recent.musicalCharacteristics.tempo} → ${current.musicalCharacteristics.tempo} BPM`,
     },
     currentSoundIdentity: {
-      headline: `Your Sound Right Now`,
+      headline: 'Your Sound Right Now',
       identityStatement,
       coreAtmosphere: current.musicalCharacteristics.atmosphere,
     },
     yourTasteExplained: {
-      title: 'Your Musical DNA in Motion',
-      introduction: narrativeIntro,
+      title: 'Your Musical Arc, Explained',
+      introduction,
       recentVsLongterm: recentVsLong,
-      varietyAndConcentration: varietyConcentration,
-      contradictionsAndPatterns: patterns,
+      varietyAndConcentration: genreDiversityNote,
+      contradictionsAndPatterns: loyaltyNote,
       closingSynthesis,
     },
     metadata: {
       provider: 'deterministic_engine',
       isAIGenerated: false,
-      notice: 'Computed directly from your authorized Spotify Web API multi-period snapshots.',
+      notice: 'Computed directly from verified Spotify Web API multi-period snapshots. No AI inference used.',
       calculatedAt: new Date().toISOString(),
     },
   };
 }
 
+// ─── Pre-Digest Context for LLM ─────────────────────────────────────────────
+
+/**
+ * Converts the raw TasteAnalysisContext into a structured, readable summary
+ * that Gemini can parse cleanly without navigating a 150-field JSON object.
+ * Data availability flags are surfaced explicitly so the AI never invents missing data.
+ */
+function buildDigestedContext(ctx: TasteAnalysisContext): string {
+  const { current, recent, yearly, metricDeltas, trajectory, dataAvailability } = ctx;
+
+  const fmt = (v: number) => v.toString();
+  const fmtDelta = (v: number) => (v > 0 ? `+${v}` : `${v}`);
+  const dirArrow = (dir: string) => (dir === 'rising' ? '↑' : dir === 'falling' ? '↓' : '→');
+
+  const safeArtists = (period: typeof current, hasData: boolean) =>
+    hasData && period.topArtists.length > 0
+      ? period.topArtists.slice(0, 6).map((a) => a.name).join(', ')
+      : '[No artist data available for this period]';
+
+  const safeGenres = (period: typeof current, hasData: boolean) =>
+    hasData && period.topGenres.length > 0
+      ? period.topGenres.slice(0, 5).map((g) => `${g.genre} (${g.percentage}%)`).join(', ')
+      : '[Genre data not returned by Spotify for this period — do not invent genre names]';
+
+  return `
+=== LISTENER DATA SUMMARY ===
+Data sampled: ${ctx.dataSummary.artistsSampled} artists, ${ctx.dataSummary.tracksSampled} tracks
+
+--- PERIOD 1: LAST 1 YEAR (Baseline) ---
+Top Artists: ${safeArtists(yearly, dataAvailability.hasYearlyArtistData)}
+Top Genres: ${safeGenres(yearly, dataAvailability.hasYearlyGenreData)}
+Metrics:
+  Artist Diversity: ${fmt(yearly.metrics.artistDiversity)}/100
+  Genre Diversity: ${fmt(yearly.metrics.genreDiversity)}/100 (unique genres: ${yearly.totalUniqueGenres}${!dataAvailability.hasYearlyGenreData ? ' — unavailable' : ''})
+  Discovery Rate: ${fmt(yearly.metrics.discoveryRate)}/100
+  Artist Loyalty: ${fmt(yearly.metrics.loyaltyScore)}/100
+  Niche Score: ${fmt(yearly.metrics.nicheScore)}/100
+Audio Profile: Energy ${yearly.musicalCharacteristics.energy}/100 | Tempo ${yearly.musicalCharacteristics.tempo} BPM | Acousticness ${yearly.musicalCharacteristics.acousticness}/100 | Danceability ${yearly.musicalCharacteristics.danceability}/100 | Atmosphere: ${yearly.musicalCharacteristics.atmosphere}
+
+--- PERIOD 2: LAST 6 MONTHS (Transition) ---
+Top Artists: ${safeArtists(recent, dataAvailability.hasRecentArtistData)}
+Top Genres: ${safeGenres(recent, dataAvailability.hasRecentGenreData)}
+Metrics:
+  Artist Diversity: ${fmt(recent.metrics.artistDiversity)}/100
+  Genre Diversity: ${fmt(recent.metrics.genreDiversity)}/100 (unique genres: ${recent.totalUniqueGenres}${!dataAvailability.hasRecentGenreData ? ' — unavailable' : ''})
+  Discovery Rate: ${fmt(recent.metrics.discoveryRate)}/100
+  Artist Loyalty: ${fmt(recent.metrics.loyaltyScore)}/100
+  Niche Score: ${fmt(recent.metrics.nicheScore)}/100
+Audio Profile: Energy ${recent.musicalCharacteristics.energy}/100 | Tempo ${recent.musicalCharacteristics.tempo} BPM | Acousticness ${recent.musicalCharacteristics.acousticness}/100 | Danceability ${recent.musicalCharacteristics.danceability}/100 | Atmosphere: ${recent.musicalCharacteristics.atmosphere}
+
+--- PERIOD 3: LAST 4 WEEKS (Current) ---
+Top Artists: ${safeArtists(current, dataAvailability.hasCurrentArtistData)}
+Top Genres: ${safeGenres(current, dataAvailability.hasCurrentGenreData)}
+Metrics:
+  Artist Diversity: ${fmt(current.metrics.artistDiversity)}/100
+  Genre Diversity: ${fmt(current.metrics.genreDiversity)}/100 (unique genres: ${current.totalUniqueGenres}${!dataAvailability.hasCurrentGenreData ? ' — unavailable' : ''})
+  Discovery Rate: ${fmt(current.metrics.discoveryRate)}/100
+  Artist Loyalty: ${fmt(current.metrics.loyaltyScore)}/100
+  Niche Score: ${fmt(current.metrics.nicheScore)}/100
+Audio Profile: Energy ${current.musicalCharacteristics.energy}/100 | Tempo ${current.musicalCharacteristics.tempo} BPM | Acousticness ${current.musicalCharacteristics.acousticness}/100 | Danceability ${current.musicalCharacteristics.danceability}/100 | Atmosphere: ${current.musicalCharacteristics.atmosphere}
+
+--- COMPUTED DELTAS (1Y → 6M → 4W) ---
+Artist Diversity: ${fmt(metricDeltas.artistDiversity.yearly)} → ${fmt(metricDeltas.artistDiversity.recent)} → ${fmt(metricDeltas.artistDiversity.current)} (net change: ${fmtDelta(metricDeltas.artistDiversity.netChange)} ${dirArrow(metricDeltas.artistDiversity.direction)})
+Genre Diversity: ${fmt(metricDeltas.genreDiversity.yearly)} → ${fmt(metricDeltas.genreDiversity.recent)} → ${fmt(metricDeltas.genreDiversity.current)} (net: ${fmtDelta(metricDeltas.genreDiversity.netChange)} ${dirArrow(metricDeltas.genreDiversity.direction)})
+Discovery Rate: ${fmt(metricDeltas.discovery.yearly)} → ${fmt(metricDeltas.discovery.recent)} → ${fmt(metricDeltas.discovery.current)} (net: ${fmtDelta(metricDeltas.discovery.netChange)} ${dirArrow(metricDeltas.discovery.direction)})
+Artist Loyalty: ${fmt(metricDeltas.loyalty.yearly)} → ${fmt(metricDeltas.loyalty.recent)} → ${fmt(metricDeltas.loyalty.current)} (net: ${fmtDelta(metricDeltas.loyalty.netChange)} ${dirArrow(metricDeltas.loyalty.direction)})
+Niche Affinity: ${fmt(metricDeltas.nicheAffinity.yearly)} → ${fmt(metricDeltas.nicheAffinity.recent)} → ${fmt(metricDeltas.nicheAffinity.current)} (net: ${fmtDelta(metricDeltas.nicheAffinity.netChange)} ${dirArrow(metricDeltas.nicheAffinity.direction)})
+Energy: ${fmt(metricDeltas.energy.yearly)} → ${fmt(metricDeltas.energy.recent)} → ${fmt(metricDeltas.energy.current)} (net: ${fmtDelta(metricDeltas.energy.netChange)} ${dirArrow(metricDeltas.energy.direction)})
+Tempo BPM: ${fmt(metricDeltas.tempo.yearly)} → ${fmt(metricDeltas.tempo.recent)} → ${fmt(metricDeltas.tempo.current)} (net: ${fmtDelta(metricDeltas.tempo.netChange)} ${dirArrow(metricDeltas.tempo.direction)})
+Acousticness: ${fmt(metricDeltas.acousticness.yearly)} → ${fmt(metricDeltas.acousticness.recent)} → ${fmt(metricDeltas.acousticness.current)} (net: ${fmtDelta(metricDeltas.acousticness.netChange)} ${dirArrow(metricDeltas.acousticness.direction)})
+Danceability: ${fmt(metricDeltas.danceability.yearly)} → ${fmt(metricDeltas.danceability.recent)} → ${fmt(metricDeltas.danceability.current)} (net: ${fmtDelta(metricDeltas.danceability.netChange)} ${dirArrow(metricDeltas.danceability.direction)})
+
+--- ARTIST TRAJECTORY (cross-period movement) ---
+Trajectory data available: ${dataAvailability.hasTrajectoryData ? 'Yes' : 'No'}
+Emerging (in 4W, NOT in 1Y): ${trajectory.emergingArtists.length > 0 ? trajectory.emergingArtists.join(', ') : 'None detected'}
+Declining (in 1Y, NOT in 4W): ${trajectory.decliningArtists.length > 0 ? trajectory.decliningArtists.join(', ') : 'None detected'}
+Core anchors (in both 1Y and 4W): ${trajectory.coreAnchors.length > 0 ? trajectory.coreAnchors.join(', ') : 'None detected'}
+Rising genres (gained share 1Y→4W): ${trajectory.risingGenres.length > 0 ? trajectory.risingGenres.join(', ') : 'None detected'}
+Fading genres (lost share 1Y→4W): ${trajectory.fadingGenres.length > 0 ? trajectory.fadingGenres.join(', ') : 'None detected'}
+Stable genres (consistent across periods): ${trajectory.stableGenres.length > 0 ? trajectory.stableGenres.join(', ') : 'None detected'}
+`.trim();
+}
+
 // ─── LLM Prompt Construction ────────────────────────────────────────────────
 
 function buildSystemPrompt(): string {
-  return `You are Lore.fm's Lead Music AI Analyst.
-Your role is to interpret a listener's mathematical music taste metrics across three timeframes:
-- Last 4 Weeks (CURRENT)
-- Last 6 Months (RECENT ERA)
-- Last 1 Year (LONG-TERM BASELINE)
+  return `You are Lore.fm's Music Intelligence Engine.
 
-CRITICAL RULES & GUARDRAILS:
-1. STRICT DATA INTEGRITY: You are an INTERPRETER, not a data generator. You MUST ONLY reference artist names, genre names, and numbers that are explicitly given in the user data context. NEVER invent artists, genres, track counts, or statistics.
-2. MUSIC-FOCUSED & NON-PSYCHOLOGICAL: Discuss musical characteristics, production style, tempo, acoustic textures, arrangement, and artist eras. NEVER make psychological or medical assertions (e.g. NEVER say "You are sad/depressed"). Say "Your listening leans into introspective, acoustic arrangements."
-3. TONE & STYLE: Personal, conversational, perceptive, music-knowledgeable, and engaging. Avoid dry corporate jargon (e.g. avoid "auditory preference diversification indices").
-4. RETURN STRICT JSON: You must respond ONLY with a valid JSON object strictly adhering to the specified schema.`;
+Your single purpose is LONGITUDINAL ANALYSIS of a listener's Spotify data across three measured timeframes. You explain HOW their taste has evolved — not what personality type they are.
+
+YOUR TASK — answer these questions using ONLY the provided data:
+1. What is the listener's current sound (4W)? Name real artists and genres from the data.
+2. What characterized their listening a year ago (1Y)? What was the baseline?
+3. What measurably changed 1Y→6M→4W? Reference actual metric deltas with numbers.
+4. Which artists are emerging (new in 4W) or declining (faded from 1Y)?
+5. Which genres gained or lost share? Only if genre data is marked available.
+6. Is the listener diversifying or concentrating? Use the diversity delta.
+7. Are they discovering new artists or returning to anchors? Use discovery/loyalty deltas.
+8. How have energy, tempo, and acoustic texture shifted?
+9. Where does their taste appear to be heading?
+
+STRICT RULES:
+- DATA INTEGRITY: Only reference artist and genre names that appear verbatim in the data. NEVER invent names.
+- UNAVAILABLE DATA: If the data says "[Genre data not returned by Spotify]", do not mention genres for that period. Say the data was unavailable.
+- COMPARISON FIRST: Every insight must compare periods. Never describe just the current snapshot.
+- CITE METRICS: Back every claim with at least one number. Example: "Artist diversity rose from 72 (1Y) to 85 (4W)."
+- MUSIC LANGUAGE: Discuss arrangements, tempo, acoustic vs electronic textures. No psychology.
+- TONE: Conversational, perceptive, direct. Like a knowledgeable music friend.
+- JSON ONLY: Return only valid JSON. No markdown, no preamble, no trailing text.`;
 }
 
 function buildUserPrompt(context: TasteAnalysisContext): string {
-  return `Analyze this listener's verified Spotify data context and produce a structured JSON response:
+  return `Using the verified Spotify listener data below, perform a longitudinal taste analysis. Answer all 9 questions through the JSON schema fields.
 
-DATA CONTEXT:
-${JSON.stringify(context, null, 2)}
+${buildDigestedContext(context)}
 
-Required JSON Schema:
+Return ONLY this JSON schema filled with your analysis:
 {
   "whereTasteIsHeading": {
-    "headline": "Short snappy title (e.g., 'A Shift Toward Ambient & Indie-Pop')",
-    "narrative": "Conversational paragraph explaining where taste is trending from 1Y to 4W",
-    "keyDrivers": ["Artist1", "Artist2"],
-    "emergingFocus": "Genre or style name"
+    "headline": "Sharp 6-8 word title of directional momentum (e.g. 'Trending Toward Ambient & Electronic Textures')",
+    "narrative": "2-3 sentences on WHERE taste is heading based on what rose from 1Y to 4W. Reference specific artists or genres from the data. Compare periods explicitly.",
+    "keyDrivers": ["Artist or genre driving the shift (from data only)", "Second driver"],
+    "emergingFocus": "Single clearest emerging genre or artist direction (from data only)"
   },
   "howTasteHasChanged": {
-    "headline": "Summary title of the multi-period shift",
-    "comparisonNarrative": "Comparative narrative contrasting 1-Year baseline vs 4-Week current rotation",
-    "primaryShift": "One-line takeaway of the primary evolutionary change",
+    "headline": "6-8 word title summarizing the main 1Y→4W evolutionary shift",
+    "comparisonNarrative": "3-4 sentences contrasting 1Y baseline with 4W current rotation. Name specific artists from both periods. Explain what dropped and what entered. Reference at least 2 metric deltas with actual numbers.",
+    "primaryShift": "One sharp sentence: the single most significant change from 1Y to 4W.",
     "metricHighlights": [
-      {
-        "label": "Artist Diversity",
-        "change": "1Y XX → 6M YY → 4W ZZ",
-        "interpretation": "Short conversational meaning of this change"
-      },
-      {
-        "label": "Genre Diversity",
-        "change": "1Y XX → 6M YY → 4W ZZ",
-        "interpretation": "Short conversational meaning"
-      },
-      {
-        "label": "Discovery Rate",
-        "change": "1Y XX → 6M YY → 4W ZZ",
-        "interpretation": "Short conversational meaning"
-      },
-      {
-        "label": "Artist Loyalty",
-        "change": "1Y XX → 6M YY → 4W ZZ",
-        "interpretation": "Short conversational meaning"
-      }
+      { "label": "Artist Diversity", "change": "1Y [value] → 6M [value] → 4W [value]", "interpretation": "What this numeric progression means for listening behavior" },
+      { "label": "Genre Diversity", "change": "1Y [value] → 6M [value] → 4W [value] — or 'Unavailable' if flagged", "interpretation": "Meaning, or state data was not available" },
+      { "label": "Discovery Rate", "change": "1Y [value] → 6M [value] → 4W [value]", "interpretation": "Is this listener finding new artists or returning to anchors?" },
+      { "label": "Artist Loyalty", "change": "1Y [value] → 6M [value] → 4W [value]", "interpretation": "What the loyalty trend reveals about listening behavior" }
     ]
   },
   "musicalMoodAndTone": {
-    "headline": "Atmosphere / vibe title",
-    "currentSoundscape": "Description of the current sonic environment",
-    "toneShiftExplanation": "How tempo, energy, and acoustic textures shifted across periods",
-    "energyTempoAnalysis": "Clear factual comparison of energy and tempo numbers across periods"
+    "headline": "Current 4-week atmosphere label from the data",
+    "currentSoundscape": "Factual description: energy, tempo, acousticness, danceability numbers for the 4-week period",
+    "toneShiftExplanation": "2-3 sentences on how energy/tempo/acoustic texture changed from 1Y to 4W with actual numbers. Is it mellowing or gaining momentum?",
+    "energyTempoAnalysis": "Factual comparison: Energy 1Y→6M→4W and Tempo 1Y→6M→4W with actual numbers"
   },
   "currentSoundIdentity": {
     "headline": "Your Sound Right Now",
-    "identityStatement": "A sharp, 2-3 sentence summary of what this listener sounds like right now",
-    "coreAtmosphere": "E.g., High-Energy & Punchy or Introspective Acoustic"
+    "identityStatement": "2-3 sentences describing what this listener sounds like RIGHT NOW based on 4W data only. Name artists and genres only from current period data. Make it specific.",
+    "coreAtmosphere": "The 4W atmosphere string from the data"
   },
   "yourTasteExplained": {
-    "title": "Your Musical Journey, Explained",
-    "introduction": "Engaging opening framing current vs past taste",
-    "recentVsLongterm": "Detailed breakdown comparing 4 weeks with 6 months and 1 year",
-    "varietyAndConcentration": "Analysis of artist breadth vs focus",
-    "contradictionsAndPatterns": "Notable habits, loyalty anchors, and discovery behaviors",
-    "closingSynthesis": "Encouraging, perceptive concluding thought"
+    "title": "Your Musical Arc, Explained",
+    "introduction": "2-3 sentences establishing the full 1Y→6M→4W arc. Name key artists from each period if available. Frame the story of the year.",
+    "recentVsLongterm": "Which artists persisted, which entered, which faded. Compare 4W vs 1Y explicitly. Mention core anchors and emerging artists from trajectory data.",
+    "varietyAndConcentration": "Artist and genre diversity trend. Is the listener broadening or narrowing? Use diversity metric deltas. Flag genre diversity as unavailable if the data says so.",
+    "contradictionsAndPatterns": "Discovery vs loyalty dynamics with actual numbers. What tension exists? Are they loyal but also discovering?",
+    "closingSynthesis": "One compelling sentence summarizing the overall trajectory and where this listener appears to be heading."
   }
 }`;
 }
@@ -282,7 +431,7 @@ export async function generateTasteAIInterpretation(
   const geminiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  // 1. If Gemini API Key is provided
+  // 1. Gemini
   if (geminiKey) {
     try {
       const response = await axios.post(
@@ -291,17 +440,15 @@ export async function generateTasteAIInterpretation(
           contents: [
             {
               role: 'user',
-              parts: [
-                { text: `${buildSystemPrompt()}\n\n${buildUserPrompt(context)}` },
-              ],
+              parts: [{ text: `${buildSystemPrompt()}\n\n${buildUserPrompt(context)}` }],
             },
           ],
           generationConfig: {
             responseMimeType: 'application/json',
-            temperature: 0.4,
+            temperature: 0.3,
           },
         },
-        { timeout: 15000 }
+        { timeout: 20000 }
       );
 
       const rawJson = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -312,17 +459,20 @@ export async function generateTasteAIInterpretation(
           metadata: {
             provider: 'gemini',
             isAIGenerated: true,
-            notice: 'Generated using Lore.fm AI interpretation engine & Google Gemini.',
+            notice: 'Longitudinal analysis generated by Lore.fm AI using Google Gemini — all claims grounded in verified Spotify data.',
             calculatedAt: new Date().toISOString(),
           },
         };
       }
     } catch (err) {
-      console.warn('[AIService] Gemini request failed or timed out. Falling back to deterministic synthesizer:', (err as Error).message);
+      console.warn(
+        '[AIService] Gemini request failed or timed out. Falling back to deterministic synthesizer:',
+        (err as Error).message
+      );
     }
   }
 
-  // 2. If OpenAI API Key is provided
+  // 2. OpenAI
   if (openaiKey) {
     try {
       const response = await axios.post(
@@ -334,11 +484,11 @@ export async function generateTasteAIInterpretation(
             { role: 'user', content: buildUserPrompt(context) },
           ],
           response_format: { type: 'json_object' },
-          temperature: 0.4,
+          temperature: 0.3,
         },
         {
           headers: { Authorization: `Bearer ${openaiKey}` },
-          timeout: 15000,
+          timeout: 20000,
         }
       );
 
@@ -350,16 +500,19 @@ export async function generateTasteAIInterpretation(
           metadata: {
             provider: 'openai',
             isAIGenerated: true,
-            notice: 'Generated using Lore.fm AI interpretation engine & OpenAI.',
+            notice: 'Longitudinal analysis generated by Lore.fm AI using OpenAI — all claims grounded in verified Spotify data.',
             calculatedAt: new Date().toISOString(),
           },
         };
       }
     } catch (err) {
-      console.warn('[AIService] OpenAI request failed. Falling back to deterministic synthesizer:', (err as Error).message);
+      console.warn(
+        '[AIService] OpenAI request failed. Falling back to deterministic synthesizer:',
+        (err as Error).message
+      );
     }
   }
 
-  // 3. Fallback: High-Precision Deterministic Synthesizer
+  // 3. Deterministic Fallback
   return generateDeterministicInterpretation(context);
 }

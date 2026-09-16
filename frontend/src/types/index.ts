@@ -353,6 +353,10 @@ export interface PeriodSummary {
     percentage: number;
   }[];
   musicalCharacteristics: MusicalCharacteristics;
+  /** True only if Spotify returned genre tags for this period's artists */
+  hasGenreData: boolean;
+  /** Number of unique genres for this period (0 = none returned by Spotify) */
+  totalUniqueGenres: number;
 }
 
 export interface MetricDelta {
@@ -382,6 +386,15 @@ export interface TasteAnalysisContext {
     artistsSampled: number;
     tracksSampled: number;
     periodsAvailable: number;
+  };
+  dataAvailability: {
+    hasCurrentGenreData: boolean;
+    hasRecentGenreData: boolean;
+    hasYearlyGenreData: boolean;
+    hasCurrentArtistData: boolean;
+    hasRecentArtistData: boolean;
+    hasYearlyArtistData: boolean;
+    hasTrajectoryData: boolean;
   };
   current: PeriodSummary;
   recent: PeriodSummary;

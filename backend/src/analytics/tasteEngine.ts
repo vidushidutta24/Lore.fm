@@ -191,11 +191,26 @@ export interface FullTasteProfile {
 
 // ─── Calculation Helpers ───────────────────────────────────────────────────
 
+const lastSync = new Map<string, number>();
+const syncLocks = new Map<string, Promise<void>>();
+
 /**
  * Ensure user has fresh data in DB by querying Spotify API and saving snapshots if needed.
  */
 async function ensureSpotifyData(userId: string, timeRange: TimeRange) {
-  try {
+  const cacheKey = `${userId}:${timeRange}`;
+  
+  const now = Date.now();
+  if (lastSync.has(cacheKey) && now - lastSync.get(cacheKey)! < 5 * 60 * 1000) {
+    return;
+  }
+
+  if (syncLocks.has(cacheKey)) {
+    return syncLocks.get(cacheKey);
+  }
+
+  const syncPromise = (async () => {
+    try {
     const [artistsData, tracksData, recentData] = await Promise.all([
       getTopArtists(userId, timeRange, 50).catch(() => ({ items: [], total: 0 })),
       getTopTracks(userId, timeRange, 50).catch(() => ({ items: [], total: 0 })),
@@ -230,9 +245,17 @@ async function ensureSpotifyData(userId: string, timeRange: TimeRange) {
         await saveGenreSnapshot(userId, longData.items, 'long_term').catch(() => {});
       }
     }
+
+    lastSync.set(cacheKey, Date.now());
   } catch (err) {
     console.error('[TasteEngine] Error ensuring Spotify data:', err);
+  } finally {
+    syncLocks.delete(cacheKey);
   }
+  })();
+
+  syncLocks.set(cacheKey, syncPromise);
+  return syncPromise;
 }
 
 // ─── Main Calculation Engine ────────────────────────────────────────────────
