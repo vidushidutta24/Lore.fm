@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { useTasteProfile } from '../hooks/useSpotifyData';
+import { useTasteProfile, useTasteAI } from '../hooks/useSpotifyData';
 import { TasteHeader } from '../components/taste/TasteHeader';
 import { ArchetypeHero } from '../components/taste/ArchetypeHero';
 import { MusicDNAScorecard } from '../components/taste/MusicDNAScorecard';
@@ -11,6 +11,10 @@ import { RecentTrendsCard } from '../components/taste/RecentTrendsCard';
 import { LoyaltyAndDiscoveryCard } from '../components/taste/LoyaltyAndDiscoveryCard';
 import { NicheIndexCard } from '../components/taste/NicheIndexCard';
 import { TasteEvolutionCard } from '../components/taste/TasteEvolutionCard';
+import { AiNarrativeCard } from '../components/taste/AiNarrativeCard';
+import { TasteTrajectoryCard } from '../components/taste/TasteTrajectoryCard';
+import { MultiPeriodComparisonCard } from '../components/taste/MultiPeriodComparisonCard';
+import { MusicalMoodCard } from '../components/taste/MusicalMoodCard';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ErrorState, EmptyState } from '../components/ui/ErrorState';
 import type { TimeRange } from '../types';
@@ -20,14 +24,30 @@ export function TastePage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: profile, isLoading, isError, error, refetch } = useTasteProfile(timeRange);
+  const {
+    data: profile,
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    error: profileError,
+    refetch: refetchProfile,
+  } = useTasteProfile(timeRange);
+
+  const {
+    data: aiData,
+    isLoading: isAiLoading,
+    isError: isAiError,
+    refetch: refetchAI,
+  } = useTasteAI();
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ['analytics-taste-profile'] });
-    await refetch();
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['analytics-taste-profile'] }),
+      queryClient.invalidateQueries({ queryKey: ['analytics-taste-ai'] }),
+    ]);
+    await Promise.all([refetchProfile(), refetchAI()]);
     setTimeout(() => setIsRefreshing(false), 800);
-  }, [queryClient, refetch]);
+  }, [queryClient, refetchProfile, refetchAI]);
 
   return (
     <div className="flex-1 min-w-0">
@@ -43,7 +63,7 @@ export function TastePage() {
       {/* Main Content Area */}
       <main className="px-6 py-8 flex flex-col gap-10 pb-28 lg:pb-16 max-w-7xl mx-auto">
         {/* Loading Skeleton View */}
-        {isLoading && (
+        {isProfileLoading && (
           <div className="space-y-8 animate-pulse">
             <Skeleton className="h-72 w-full rounded-3xl" />
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
@@ -59,16 +79,19 @@ export function TastePage() {
         )}
 
         {/* Error State */}
-        {isError && (
+        {isProfileError && (
           <ErrorState
             title="Failed to generate Taste Profile"
-            message={(error as Error)?.message || 'Could not retrieve listening analytics from Spotify.'}
-            onRetry={() => refetch()}
+            message={(profileError as Error)?.message || 'Could not retrieve listening analytics from Spotify.'}
+            onRetry={() => {
+              refetchProfile();
+              refetchAI();
+            }}
           />
         )}
 
         {/* Empty State */}
-        {!isLoading && !isError && !profile && (
+        {!isProfileLoading && !isProfileError && !profile && (
           <EmptyState
             icon="🧬"
             title="No Taste Data Available"
@@ -77,7 +100,7 @@ export function TastePage() {
         )}
 
         {/* Populated Taste Profile View */}
-        {!isLoading && !isError && profile && (
+        {!isProfileLoading && !isProfileError && profile && (
           <>
             {/* 1. Archetype Hero Banner */}
             <ArchetypeHero
@@ -89,7 +112,69 @@ export function TastePage() {
             {/* 2. Music DNA Scorecard */}
             <MusicDNAScorecard dna={profile.musicDNA} />
 
-            {/* 3. Core Structural Analysis: Artist Diversity & Genre Profile */}
+            {/* 3. AI-Powered Multi-Period Evolution & Trajectory */}
+            {isAiLoading && (
+              <div className="p-6 rounded-3xl bg-purple-500/5 border border-purple-500/15 flex items-center gap-4 animate-pulse">
+                <div className="text-2xl animate-spin">🌀</div>
+                <div>
+                  <h4 className="text-sm font-semibold text-purple-200">Reading your musical timeline...</h4>
+                  <p className="text-xs text-slate-400">Comparing your 4-week rotation with your 6-month era and 1-year baseline.</p>
+                </div>
+              </div>
+            )}
+
+            {isAiError && (
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 flex items-center justify-between">
+                <span>⚠️ Your music data is ready, but your AI interpretation couldn't be generated right now.</span>
+                <button
+                  onClick={() => refetchAI()}
+                  className="px-3 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-100 font-semibold"
+                >
+                  Retry AI
+                </button>
+              </div>
+            )}
+
+            {aiData && (
+              <>
+                {/* 3A. Trajectory & Multi-Period Comparative Dynamics */}
+                <section className="space-y-4">
+                  <div>
+                    <h2
+                      className="text-xl font-bold flex items-center gap-2"
+                      style={{ fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)' }}
+                    >
+                      <span>🧭</span> Multi-Period Evolution & Heading
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      How your taste shifted from your 1-year baseline through your 6-month era to your active 4-week sound.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <TasteTrajectoryCard
+                      headingData={aiData.interpretation.whereTasteIsHeading}
+                      trajectory={aiData.context.trajectory}
+                    />
+                    <MultiPeriodComparisonCard
+                      changeData={aiData.interpretation.howTasteHasChanged}
+                      context={aiData.context}
+                    />
+                  </div>
+                </section>
+
+                {/* 3B. Musical Mood & Audio Characteristics Tone */}
+                <MusicalMoodCard
+                  moodData={aiData.interpretation.musicalMoodAndTone}
+                  context={aiData.context}
+                />
+
+                {/* 3C. Deep AI Narrative & Sound Right Now */}
+                <AiNarrativeCard interpretation={aiData.interpretation} />
+              </>
+            )}
+
+            {/* 4. Core Structural Analysis: Artist Diversity & Genre Profile */}
             <section className="space-y-4">
               <div>
                 <h2
@@ -122,7 +207,7 @@ export function TastePage() {
               </div>
             </section>
 
-            {/* 4. Behavioral & Momentum Analysis: Recent Trends & Loyalty vs Discovery */}
+            {/* 5. Behavioral & Momentum Analysis: Recent Trends & Loyalty vs Discovery */}
             <section className="space-y-4">
               <div>
                 <h2
@@ -155,14 +240,14 @@ export function TastePage() {
               </div>
             </section>
 
-            {/* 5. Cultural Spectrum & Taste Evolution: Niche Index & Evolution */}
+            {/* 6. Cultural Spectrum & Taste Evolution: Niche Index & Evolution */}
             <section className="space-y-4">
               <div>
                 <h2
                   className="text-xl font-bold flex items-center gap-2"
                   style={{ fontFamily: 'Outfit, sans-serif', color: 'var(--text-primary)' }}
                 >
-                  <span>🧭</span> Cultural Spectrum & Evolution
+                  <span>🧬</span> Cultural Spectrum & Historical Shift
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Mainstream alignment vs. underground deep cuts and trajectory over time.

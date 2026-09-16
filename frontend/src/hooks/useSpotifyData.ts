@@ -62,3 +62,13 @@ export function useTasteProfile(timeRange: TimeRange = 'medium_term') {
   });
 }
 
+export function useTasteAI() {
+  return useQuery({
+    queryKey: ['analytics-taste-ai'],
+    queryFn: () => analyticsApi.tasteAI(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+

@@ -8,6 +8,7 @@ import type {
   MusicDNA,
   OverviewStats,
   TasteProfile,
+  TasteAIResponse,
   TimeRange,
   User,
 } from '../types';
@@ -105,6 +106,11 @@ export const analyticsApi = {
     const res = await api.get<TasteProfile>('/api/analytics/taste-profile', {
       params: { time_range: timeRange },
     });
+    return res.data;
+  },
+
+  tasteAI: async (): Promise<TasteAIResponse> => {
+    const res = await api.get<TasteAIResponse>('/api/analytics/taste-ai');
     return res.data;
   },
 };

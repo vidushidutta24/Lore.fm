@@ -316,3 +316,136 @@ export interface TasteProfile {
   };
 }
 
+// ─── Multi-Period & AI Interpretation Types ─────────────────────────────────
+
+export interface MusicalCharacteristics {
+  energy: number; // 0–100
+  tempo: number; // BPM (e.g. 115)
+  acousticness: number; // 0–100
+  danceability: number; // 0–100
+  atmosphere: string;
+  source: string;
+}
+
+export interface PeriodSummary {
+  period: '4_weeks' | '6_months' | '1_year';
+  periodLabel: string;
+  archetype: {
+    title: string;
+    subtitle: string;
+    traits: string[];
+  };
+  metrics: {
+    artistDiversity: number;
+    genreDiversity: number;
+    discoveryRate: number;
+    loyaltyScore: number;
+    nicheScore: number;
+  };
+  topArtists: {
+    name: string;
+    rank: number;
+    genres: string[];
+    popularity: number | null;
+  }[];
+  topGenres: {
+    genre: string;
+    percentage: number;
+  }[];
+  musicalCharacteristics: MusicalCharacteristics;
+}
+
+export interface MetricDelta {
+  name: string;
+  yearly: number;
+  recent: number;
+  current: number;
+  netChange: number;
+  direction: 'rising' | 'falling' | 'stable';
+  interpretation: string;
+}
+
+export interface TrajectoryInsight {
+  emergingArtists: string[];
+  decliningArtists: string[];
+  coreAnchors: string[];
+  risingGenres: string[];
+  fadingGenres: string[];
+  stableGenres: string[];
+}
+
+export interface TasteAnalysisContext {
+  userId: string;
+  generatedAt: string;
+  hasSufficientData: boolean;
+  dataSummary: {
+    artistsSampled: number;
+    tracksSampled: number;
+    periodsAvailable: number;
+  };
+  current: PeriodSummary;
+  recent: PeriodSummary;
+  yearly: PeriodSummary;
+  metricDeltas: {
+    artistDiversity: MetricDelta;
+    genreDiversity: MetricDelta;
+    discovery: MetricDelta;
+    loyalty: MetricDelta;
+    nicheAffinity: MetricDelta;
+    energy: MetricDelta;
+    tempo: MetricDelta;
+    acousticness: MetricDelta;
+    danceability: MetricDelta;
+  };
+  trajectory: TrajectoryInsight;
+}
+
+export interface AIInterpretation {
+  whereTasteIsHeading: {
+    headline: string;
+    narrative: string;
+    keyDrivers: string[];
+    emergingFocus: string;
+  };
+  howTasteHasChanged: {
+    headline: string;
+    comparisonNarrative: string;
+    primaryShift: string;
+    metricHighlights: {
+      label: string;
+      change: string;
+      interpretation: string;
+    }[];
+  };
+  musicalMoodAndTone: {
+    headline: string;
+    currentSoundscape: string;
+    toneShiftExplanation: string;
+    energyTempoAnalysis: string;
+  };
+  currentSoundIdentity: {
+    headline: string;
+    identityStatement: string;
+    coreAtmosphere: string;
+  };
+  yourTasteExplained: {
+    title: string;
+    introduction: string;
+    recentVsLongterm: string;
+    varietyAndConcentration: string;
+    contradictionsAndPatterns: string;
+    closingSynthesis: string;
+  };
+  metadata: {
+    provider: 'gemini' | 'openai' | 'anthropic' | 'deterministic_engine';
+    isAIGenerated: boolean;
+    notice: string;
+    calculatedAt: string;
+  };
+}
+
+export interface TasteAIResponse {
+  context: TasteAnalysisContext;
+  interpretation: AIInterpretation;
+}
+

@@ -5,6 +5,8 @@ import {
   calculateOverviewStats,
 } from '../analytics/engine';
 import { calculateFullTasteProfile } from '../analytics/tasteEngine';
+import { buildMultiPeriodTasteContext } from '../analytics/multiPeriodEngine';
+import { generateTasteAIInterpretation } from '../services/aiService';
 import type { TimeRange } from '../types/spotify';
 
 const router = Router();
@@ -52,6 +54,23 @@ router.get('/taste-profile', async (req: Request, res: Response, next: NextFunct
 
     const profile = await calculateFullTasteProfile(userId, timeRange);
     res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── GET /api/analytics/taste-ai — Multi-Period Context & AI Interpretation ───
+
+router.get('/taste-ai', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.session.userId!;
+    const context = await buildMultiPeriodTasteContext(userId);
+    const interpretation = await generateTasteAIInterpretation(context);
+
+    res.json({
+      context,
+      interpretation,
+    });
   } catch (err) {
     next(err);
   }
