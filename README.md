@@ -123,12 +123,39 @@ AI can be used to explain the predictions in a playful, personalized way,
 but the underlying predictions should come from the application's
 calculation engine rather than being invented by the AI.
 
-🔮 Personalized Discovery
+🔮 Personalized Discovery & ML Recommendation Engine
 
-Recommend: - Songs - Artists - Genres - Similar music - Music outside
-the user's normal comfort zone
+Lore.fm uses the user's listening history to understand their musical
+preferences and discover music they have not already heard.
 
-Recommendations should explain why something was suggested.
+The recommendation system uses machine learning and personalized feature
+analysis to recommend:
+
+New songs
+
+New artists
+
+Similar music
+
+Related genres
+
+Music outside the user's normal comfort zone
+
+The recommendation pipeline is:
+
+Spotify data → Feature engineering → ML recommendation engine →
+Candidate generation → Personalized ranking → Remove already-heard
+music → Discover
+
+The system should consider listening frequency, favorite artists and
+tracks, genre preferences, historical behavior, artist/track similarity,
+and discovery behavior.
+
+Recommendations should explain why they were suggested.
+
+The first ML implementation should use a content-based recommendation
+approach and remain extensible for future personalized ranking and more
+advanced recommendation models.
 
 🎧 What Should I Listen To?
 
@@ -163,6 +190,29 @@ Wrapped     Predicted yearly Spotify Wrapped
 Discover    Personalized recommendations
 Story       Playful music-based life story
 Assistant   Personalized music interaction
+
+🤖 Machine Learning
+
+Lore.fm is not intended to only read and display Spotify data. The
+application should progressively learn useful patterns from the user's
+listening behavior.
+
+The ML layer is primarily used for personalized music discovery.
+
+Initial ML stack:
+
+Python
+
+pandas
+
+NumPy
+
+scikit-learn
+
+FastAPI for communication with the existing Node/Express backend
+
+Gemini may be used as an optional explanation layer, but it should not
+invent recommendation results or factual listening statistics.
 
 🛠️ Development Philosophy
 

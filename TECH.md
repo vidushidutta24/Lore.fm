@@ -1,6 +1,6 @@
 ⚙️ Personal Spotify Music Analyzer --- Technical Specification
 
-1. Project Overview
+Project Overview
 
 A full-stack web application that authenticates users with Spotify,
 retrieves authorized listening data through the Spotify Web API, stores
@@ -26,7 +26,7 @@ Clean separation of concerns
 
 Production-ready architecture
 
-2. Recommended Stack
+Recommended Stack
 
 Frontend
 
@@ -95,26 +95,37 @@ Database: Neon / Supabase / Railway PostgreSQL
 Choose one deployment strategy and document it clearly rather than
 introducing unnecessary infrastructure.
 
-3. High-Level Architecture
+High-Level Architecture
 
 ┌──────────────────────────────┐
 │          React UI            │
 │ Dashboard / Taste / Discover │
 └──────────────┬───────────────┘
-               │
-               ▼
+│
+▼
 ┌──────────────────────────────┐
 │       Node / Express API     │
 │ Auth / Spotify / Analytics   │
-└───────┬───────────────┬──────┘
-        │               │
-        ▼               ▼
+└───────┬───────────┬──────────┘
+│           │
+▼           ▼
 ┌──────────────┐  ┌────────────────┐
 │ Spotify API  │  │   PostgreSQL   │
 │              │  │ Historical Data│
 └──────────────┘  └────────────────┘
+│
+▼
+┌──────────────────────────────┐
+│      Python ML Service       │
+│ Feature Engineering / Model │
+│ Similarity / Ranking         │
+└──────────────┬───────────────┘
+│
+▼
+Personalized
+Recommendations
 
-4. Spotify Integration
+Spotify Integration
 
 Use Spotify's official Web API.
 
@@ -141,34 +152,34 @@ Do not hard-code assumptions about endpoints that may have changed.
 Before implementing an endpoint, verify that it is currently available
 and that the required scope is supported.
 
-5. Authentication Flow
+Authentication Flow
 
 Basic flow:
 
 User
- │
- ▼
+│
+▼
 "Connect Spotify"
- │
- ▼
+│
+▼
 Spotify Authorization
- │
- ▼
+│
+▼
 User grants permissions
- │
- ▼
+│
+▼
 Application receives authorization result
- │
- ▼
+│
+▼
 Backend obtains authorized access
- │
- ▼
+│
+▼
 Spotify API
- │
- ▼
+│
+▼
 Normalize and store data
- │
- ▼
+│
+▼
 Dashboard
 
 Security requirements
@@ -187,7 +198,7 @@ Do not log access/refresh tokens.
 
 Use HTTPS in production.
 
-6. Suggested Environment Variables
+Suggested Environment Variables
 
 SPOTIFY_CLIENT_ID=
 SPOTIFY_CLIENT_SECRET=
@@ -201,7 +212,7 @@ Never commit .env files.
 
 Include a .env.example file with empty placeholders.
 
-7. Database Design
+Database Design
 
 The database should preserve historical information instead of only
 storing the latest Spotify response.
@@ -209,91 +220,143 @@ storing the latest Spotify response.
 Users
 
 User
-- id
-- spotifyId
-- displayName
-- email (only if legitimately available and required)
-- createdAt
-- updatedAt
+
+id
+
+spotifyId
+
+displayName
+
+email (only if legitimately available and required)
+
+createdAt
+
+updatedAt
 
 Artists
 
 Artist
-- id
-- spotifyId
-- name
-- popularity
-- imageUrl
-- createdAt
-- updatedAt
+
+id
+
+spotifyId
+
+name
+
+popularity
+
+imageUrl
+
+createdAt
+
+updatedAt
 
 Tracks
 
 Track
-- id
-- spotifyId
-- name
-- artistId
-- albumId
-- duration
-- popularity
-- createdAt
-- updatedAt
+
+id
+
+spotifyId
+
+name
+
+artistId
+
+albumId
+
+duration
+
+popularity
+
+createdAt
+
+updatedAt
 
 Albums
 
 Album
-- id
-- spotifyId
-- name
-- imageUrl
-- releaseDate
-- createdAt
-- updatedAt
+
+id
+
+spotifyId
+
+name
+
+imageUrl
+
+releaseDate
+
+createdAt
+
+updatedAt
 
 Listening Events
 
 ListeningEvent
-- id
-- userId
-- trackId
-- playedAt
-- source
-- createdAt
+
+id
+
+userId
+
+trackId
+
+playedAt
+
+source
+
+createdAt
 
 Artist Snapshots
 
 ArtistSnapshot
-- id
-- userId
-- artistId
-- timeRange
-- rank
-- capturedAt
+
+id
+
+userId
+
+artistId
+
+timeRange
+
+rank
+
+capturedAt
 
 Track Snapshots
 
 TrackSnapshot
-- id
-- userId
-- trackId
-- timeRange
-- rank
-- capturedAt
+
+id
+
+userId
+
+trackId
+
+timeRange
+
+rank
+
+capturedAt
 
 Genre Snapshots
 
 GenreSnapshot
-- id
-- userId
-- genre
-- score
-- capturedAt
+
+id
+
+userId
+
+genre
+
+score
+
+capturedAt
 
 The exact schema can be adjusted after verifying which Spotify fields
 are currently available.
 
-8. Historical Data Strategy
+Historical Data Strategy
 
 Historical analysis is a core feature.
 
@@ -302,15 +365,15 @@ Do not overwrite previous snapshots.
 Example:
 
 2026-01
-  ↓
+↓
 Top Artists Snapshot
 
 2026-02
-  ↓
+↓
 Top Artists Snapshot
 
 2026-03
-  ↓
+↓
 Top Artists Snapshot
 
 This enables:
@@ -332,20 +395,20 @@ Calculated historical metrics
 The app cannot reconstruct listening history that was never available to
 it.
 
-9. Analytics Engine
+Analytics Engine
 
 Create a separate analytics layer.
 
 Example:
 
 Raw Spotify Data
-       ↓
+↓
 Data Normalization
-       ↓
+↓
 Analytics Engine
-       ↓
+↓
 Music Profile
-       ↓
+↓
 Visualization / Recommendations
 
 Possible metrics:
@@ -371,20 +434,20 @@ Taste evolution
 
 Compare metrics and rankings across snapshots.
 
-10. Music DNA
+Music DNA
 
 Create a derived user profile.
 
 Example structure:
 
 interface MusicDNA {
-  dominantGenres: string[];
-  genreDiversity: number;
-  artistDiversity: number;
-  discoveryScore: number;
-  loyaltyScore: number;
-  mainstreamScore?: number;
-  archetype: string;
+dominantGenres: string[];
+genreDiversity: number;
+artistDiversity: number;
+discoveryScore: number;
+loyaltyScore: number;
+mainstreamScore?: number;
+archetype: string;
 }
 
 The values should be generated from transparent calculations.
@@ -396,7 +459,7 @@ If an AI layer is eventually added, it should interpret
 already-calculated metrics rather than inventing factual listening
 statistics.
 
-11. Recommendation Engine
+Recommendation Engine
 
 Start with a rule-based recommendation system.
 
@@ -434,23 +497,26 @@ Every recommendation should have an explanation.
 Example:
 
 Recommended because:
-- You frequently listen to alternative pop
-- You favor emotionally driven songwriting
-- You already listen to several artists with a similar style
 
-12. Assistant Layer
+You frequently listen to alternative pop
+
+You favor emotionally driven songwriting
+
+You already listen to several artists with a similar style
+
+Assistant Layer
 
 The assistant should be built on structured application data.
 
 Example internal context:
 
 {
-  "topArtists": [],
-  "topGenres": [],
-  "recentTracks": [],
-  "tasteChanges": [],
-  "discoveryScore": 0,
-  "loyaltyScore": 0
+"topArtists": [],
+"topGenres": [],
+"recentTracks": [],
+"tasteChanges": [],
+"discoveryScore": 0,
+"loyaltyScore": 0
 }
 
 The assistant can then generate natural-language observations.
@@ -464,7 +530,7 @@ Calculated values should come from the analytics engine.
 AI-generated interpretations should be clearly distinguished from
 factual data.
 
-13. Music Story Feature
+Music Story Feature
 
 The story generator should receive structured music trends such as:
 
@@ -479,16 +545,16 @@ It can transform these into an entertaining fictional narrative.
 Example:
 
 Music Data
-   ↓
+↓
 Detected Patterns
-   ↓
+↓
 Story Prompt
-   ↓
+↓
 Creative Interpretation
 
 The UI should clearly label this as entertainment.
 
-14. API Structure
+API Structure
 
 Possible backend routes:
 
@@ -514,7 +580,7 @@ Possible backend routes:
 
 The exact route structure can be adjusted during implementation.
 
-15. Frontend Component Structure
+Frontend Component Structure
 
 Possible structure:
 
@@ -548,7 +614,7 @@ src/
 │
 └── App.tsx
 
-16. UI Requirements
+UI Requirements
 
 The UI should prioritize:
 
@@ -572,7 +638,7 @@ Consistent cards and spacing
 
 Avoid excessive animation that makes the analytics difficult to read.
 
-17. Error Handling
+Error Handling
 
 Handle:
 
@@ -596,7 +662,7 @@ Never show fake data as a fallback.
 
 Instead, display a useful explanation.
 
-18. Development Order
+Development Order
 
 Build in this order:
 
@@ -692,7 +758,7 @@ Security review
 
 Deployment
 
-19. Coding Standards
+Coding Standards
 
 TypeScript wherever practical.
 
@@ -716,7 +782,7 @@ Never hard-code user-specific data.
 
 Do not create fake statistics.
 
-20. Definition of Done
+Definition of Done
 
 The application is considered successful when:
 
