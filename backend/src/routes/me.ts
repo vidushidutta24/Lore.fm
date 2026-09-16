@@ -54,7 +54,36 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
 router.get('/currently-playing', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = req.session.userId!;
-    const data = await getCurrentlyPlaying(userId);
+    const rawData = await getCurrentlyPlaying(userId);
+    
+    let data = null;
+    if (rawData && rawData.item) {
+      data = {
+        is_playing: rawData.is_playing,
+        progress_ms: rawData.progress_ms,
+        item: {
+          id: rawData.item.id,
+          name: rawData.item.name,
+          artists: rawData.item.artists.map((a) => ({ id: a.id, name: a.name })),
+          album: {
+            id: rawData.item.album.id,
+            name: rawData.item.album.name,
+            imageUrl: rawData.item.album.images?.[0]?.url ?? null,
+            releaseDate: rawData.item.album.release_date,
+          },
+          durationMs: rawData.item.duration_ms,
+          explicit: rawData.item.explicit,
+          spotifyUrl: rawData.item.external_urls?.spotify ?? null,
+        }
+      };
+    } else if (rawData) {
+      data = {
+        is_playing: rawData.is_playing,
+        progress_ms: rawData.progress_ms,
+        item: null,
+      };
+    }
+
     res.json({ data }); // data is null if nothing playing or non-Premium
   } catch (err) {
     next(err);
