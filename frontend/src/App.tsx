@@ -6,8 +6,8 @@ import { Nav } from './components/Nav';
 import { LandingPage } from './pages/LandingPage';
 import { Dashboard } from './pages/Dashboard';
 import { ListeningPage } from './pages/ListeningPage';
+import { TastePage } from './pages/TastePage';
 import {
-  TastePage,
   TimelinePage,
   DiscoverPage,
   StoryPage,

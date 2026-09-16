@@ -4,6 +4,7 @@ import {
   calculateMusicDNA,
   calculateOverviewStats,
 } from '../analytics/engine';
+import { calculateFullTasteProfile } from '../analytics/tasteEngine';
 import type { TimeRange } from '../types/spotify';
 
 const router = Router();
@@ -24,7 +25,7 @@ router.get('/overview', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
-// ─── GET /api/analytics/taste — Full Music DNA ────────────────────────────────
+// ─── GET /api/analytics/taste — Basic Music DNA ───────────────────────────────
 
 router.get('/taste', async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -42,4 +43,19 @@ router.get('/taste', async (req: Request, res: Response, next: NextFunction) => 
   }
 });
 
+// ─── GET /api/analytics/taste-profile — Comprehensive Taste Profile ──────────
+
+router.get('/taste-profile', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.session.userId!;
+    const timeRange = (req.query.time_range as TimeRange) ?? 'medium_term';
+
+    const profile = await calculateFullTasteProfile(userId, timeRange);
+    res.json(profile);
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
+

@@ -18,7 +18,7 @@ const NAV_ITEMS: Omit<NavItem, 'active'>[] = [
   { path: '/assistant', label: 'Assistant', icon: '🤖' },
 ];
 
-const PLACEHOLDER_PATHS = ['/taste', '/timeline', '/discover', '/story', '/assistant'];
+const PLACEHOLDER_PATHS = ['/timeline', '/discover', '/story', '/assistant'];
 
 export function Nav() {
   const { user, logout } = useAuth();
@@ -45,10 +45,10 @@ export function Nav() {
             </div>
             <div>
               <p className="text-xs font-bold leading-none" style={{ color: 'var(--text-primary)', fontFamily: 'Outfit, sans-serif' }}>
-                Music
+                Lore
               </p>
               <p className="text-xs font-bold leading-none" style={{ color: 'var(--accent-green)', fontFamily: 'Outfit, sans-serif' }}>
-                Analyzer
+                .fm
               </p>
             </div>
           </div>

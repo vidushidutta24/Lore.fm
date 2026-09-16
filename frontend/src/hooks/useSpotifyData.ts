@@ -52,3 +52,13 @@ export function useMusicDNA(timeRange: TimeRange = 'medium_term') {
     retry: false,
   });
 }
+
+export function useTasteProfile(timeRange: TimeRange = 'medium_term') {
+  return useQuery({
+    queryKey: ['analytics-taste-profile', timeRange],
+    queryFn: () => analyticsApi.tasteProfile(timeRange),
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+}
+

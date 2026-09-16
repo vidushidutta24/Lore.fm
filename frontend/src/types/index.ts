@@ -144,3 +144,175 @@ export interface ApiError {
   message: string;
   retryAfter?: number;
 }
+
+// ─── Taste Profile Analytical Types ──────────────────────────────────────────
+
+export interface ArtistDiversityInsight {
+  score: number; // 0–100
+  uniqueArtistCount: number;
+  analyzedItemCount: number;
+  top3DominancePercentage: number;
+  listeningBreadth: 'Hyper-Focused' | 'Moderate Rotation' | 'Broad Explorer';
+  description: string;
+  topArtistsShare: {
+    name: string;
+    imageUrl: string | null;
+    estimatedShare: number;
+  }[];
+}
+
+export interface GenreItem {
+  genre: string;
+  count: number;
+  percentage: number;
+  score: number;
+}
+
+export interface GenreProfileInsight {
+  score: number; // 0–100
+  dominantGenres: string[];
+  totalUniqueGenres: number;
+  distribution: GenreItem[];
+  genreDiversityRating: 'Niche & Concentrated' | 'Genre Curious' | 'Wide Spectrum Omnivore';
+  description: string;
+}
+
+export interface RepeatTrack {
+  id: string;
+  name: string;
+  artistName: string;
+  imageUrl: string | null;
+  playCount: number;
+  lastPlayedAt: string;
+}
+
+export interface HeavyRotationArtist {
+  name: string;
+  imageUrl: string | null;
+  recentTrackCount: number;
+}
+
+export interface FactObservation {
+  tag: 'Fact' | 'Trend' | 'Pattern';
+  text: string;
+}
+
+export interface ListeningTrendsInsight {
+  recentTracksAnalyzed: number;
+  repeatTrackCount: number;
+  repeatTracks: RepeatTrack[];
+  heavyRotationArtists: HeavyRotationArtist[];
+  trendingGenres: string[];
+  observations: FactObservation[];
+  description: string;
+}
+
+export interface ArtistCategoryItem {
+  id: string;
+  name: string;
+  imageUrl: string | null;
+  genres: string[];
+  popularity: number | null;
+}
+
+export interface LoyaltyDiscoveryInsight {
+  loyaltyScore: number; // 0–100
+  discoveryScore: number; // 0–100
+  loyalAnchors: ArtistCategoryItem[];
+  freshDiscoveries: ArtistCategoryItem[];
+  dormantFavorites: ArtistCategoryItem[];
+  retentionRate: number;
+  loyaltySummary: string;
+  discoverySummary: string;
+}
+
+export interface NicheTrackSpotlight {
+  name: string;
+  artistName: string;
+  imageUrl: string | null;
+  popularity: number;
+  spotifyUrl: string | null;
+}
+
+export interface NicheArtistSpotlight {
+  name: string;
+  imageUrl: string | null;
+  popularity: number;
+  genres: string[];
+  spotifyUrl: string | null;
+}
+
+export interface NicheIndexInsight {
+  mainstreamScore: number; // 0–100
+  nicheScore: number; // 100 - mainstreamScore
+  obscurityTier: 'Mainstream Maven' | 'Pop Adjacent' | 'Eclectic Explorer' | 'Underground Seeker';
+  tierDescription: string;
+  averagePopularity: number;
+  rarestTrack: NicheTrackSpotlight | null;
+  mostPopularTrack: NicheTrackSpotlight | null;
+  rarestArtist: NicheArtistSpotlight | null;
+  mostPopularArtist: NicheArtistSpotlight | null;
+}
+
+export interface GenreShift {
+  genre: string;
+  direction: 'rising' | 'falling' | 'stable';
+  changeDescription: string;
+}
+
+export interface ArtistShift {
+  name: string;
+  imageUrl: string | null;
+  status: 'new_entry' | 'climber' | 'descender' | 'consistent';
+  rankChange?: number;
+  currentRank: number;
+}
+
+export interface TasteEvolutionInsight {
+  hasHistoricalData: boolean;
+  baselinePeriod: string;
+  comparisonPeriod: string;
+  genreShifts: GenreShift[];
+  artistShifts: ArtistShift[];
+  evolutionSummary: string;
+  historicalStatusNote: string;
+}
+
+export interface MusicDNAScorecard {
+  genreDiversity: number; // 0–100
+  artistDiversity: number; // 0–100
+  discoveryRate: number; // 0–100
+  loyaltyIndex: number; // 0–100
+  nicheAffinity: number; // 0–100
+}
+
+export interface ListenerArchetype {
+  title: string;
+  subtitle: string;
+  badge: string;
+  description: string;
+  traits: string[];
+  signatureHabits: string[];
+}
+
+export interface TasteProfile {
+  timeRange: TimeRange;
+  timeRangeLabel: string;
+  calculatedAt: string;
+  archetype: ListenerArchetype;
+  musicDNA: MusicDNAScorecard;
+  artistDiversity: ArtistDiversityInsight;
+  genreProfile: GenreProfileInsight;
+  listeningTrends: ListeningTrendsInsight;
+  loyaltyDiscovery: LoyaltyDiscoveryInsight;
+  nicheIndex: NicheIndexInsight;
+  tasteEvolution: TasteEvolutionInsight;
+  transparencyReport: {
+    source: string;
+    tracksSampled: number;
+    artistsSampled: number;
+    eventsSampled: number;
+    methodology: string;
+  };
+}
+

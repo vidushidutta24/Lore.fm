@@ -7,6 +7,7 @@ import type {
   CurrentlyPlaying,
   MusicDNA,
   OverviewStats,
+  TasteProfile,
   TimeRange,
   User,
 } from '../types';
@@ -99,7 +100,15 @@ export const analyticsApi = {
     });
     return res.data;
   },
+
+  tasteProfile: async (timeRange: TimeRange = 'medium_term'): Promise<TasteProfile> => {
+    const res = await api.get<TasteProfile>('/api/analytics/taste-profile', {
+      params: { time_range: timeRange },
+    });
+    return res.data;
+  },
 };
+
 
 // ─── Helpers ──────────────────────────────────────────────────────
 

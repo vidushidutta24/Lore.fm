@@ -47,17 +47,6 @@ function PlaceholderPage({ icon, title, description, phase }: PlaceholderPagePro
   );
 }
 
-export function TastePage() {
-  return (
-    <PlaceholderPage
-      icon="🧬"
-      title="Music DNA"
-      description="Deep genre analysis, diversity metrics, mainstream vs. niche tendencies, and your listener archetype — all calculated from your real listening history."
-      phase="Phase 2"
-    />
-  );
-}
-
 export function TimelinePage() {
   return (
     <PlaceholderPage
