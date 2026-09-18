@@ -9,8 +9,8 @@ import { ListeningPage } from './pages/ListeningPage';
 import { TastePage } from './pages/TastePage';
 import { TimelinePage } from './pages/TimelinePage';
 import { DiscoverPage } from './pages/DiscoverPage';
+import { StoryPage } from './pages/StoryPage';
 import {
-  StoryPage,
   AssistantPage,
 } from './pages/PlaceholderPages';
 

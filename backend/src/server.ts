@@ -17,6 +17,7 @@ import authRouter from './routes/auth';
 import meRouter from './routes/me';
 import analyticsRouter from './routes/analytics';
 import recommendationsRouter from './routes/recommendations';
+import storyRouter from './routes/story';
 import { errorHandler } from './middleware/errorHandler';
 import { prisma } from './services/prisma';
 
@@ -93,6 +94,7 @@ app.use('/auth', authRouter);
 app.use('/api/me', meRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/recommendations', recommendationsRouter);
+app.use('/api/story', storyRouter);
 
 
 // Health check

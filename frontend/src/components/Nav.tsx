@@ -18,7 +18,7 @@ const NAV_ITEMS: Omit<NavItem, 'active'>[] = [
   { path: '/assistant', label: 'Assistant', icon: '🤖' },
 ];
 
-const PLACEHOLDER_PATHS = ['/story', '/assistant'];
+const PLACEHOLDER_PATHS = ['/assistant'];
 
 export function Nav() {
   const { user, logout } = useAuth();
@@ -155,7 +155,7 @@ export function Nav() {
           borderTop: '1px solid var(--border-subtle)',
         }}
       >
-        {NAV_ITEMS.slice(0, 5).map((item) => {
+        {NAV_ITEMS.slice(0, 6).map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <NavLink

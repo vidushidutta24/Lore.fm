@@ -159,6 +159,15 @@ export const recommendationApi = {
   },
 };
 
+// ─── Story ────────────────────────────────────────────────────────
+
+export const storyApi = {
+  getStory: async () => {
+    const res = await api.get('/api/story');
+    return res.data;
+  },
+};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────
 

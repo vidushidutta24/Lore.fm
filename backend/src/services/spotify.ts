@@ -284,8 +284,10 @@ export async function searchSpotify(
 /**
  * Upsert a Spotify artist into the database.
  */
-export async function upsertArtist(artist: SpotifyArtist) {
+export async function upsertArtist(artist: Partial<SpotifyArtist> & { id: string; name: string }) {
   const imageUrl = artist.images?.[0]?.url ?? null;
+  const existing = await prisma.artist.findUnique({ where: { spotifyId: artist.id } });
+
   return prisma.artist.upsert({
     where: { spotifyId: artist.id },
     create: {
@@ -298,10 +300,10 @@ export async function upsertArtist(artist: SpotifyArtist) {
     },
     update: {
       name: artist.name,
-      genres: JSON.stringify(artist.genres ?? []),
-      popularity: artist.popularity ?? null,
-      imageUrl,
-      spotifyUrl: artist.external_urls?.spotify ?? null,
+      ...(artist.genres && { genres: JSON.stringify(artist.genres) }),
+      ...(artist.popularity !== undefined && { popularity: artist.popularity }),
+      ...(imageUrl && { imageUrl }),
+      ...(artist.external_urls?.spotify && { spotifyUrl: artist.external_urls.spotify }),
     },
   });
 }
@@ -336,7 +338,7 @@ export async function upsertTrack(track: SpotifyTrack) {
     albumDbId = album.id;
   }
 
-  return prisma.track.upsert({
+  const dbTrack = await prisma.track.upsert({
     where: { spotifyId: track.id },
     create: {
       spotifyId: track.id,
@@ -358,6 +360,34 @@ export async function upsertTrack(track: SpotifyTrack) {
       explicit: track.explicit ?? false,
     },
   });
+
+  // Link track artists
+  if (track.artists && track.artists.length > 0) {
+    for (let i = 0; i < track.artists.length; i++) {
+      const art = track.artists[i];
+      if (art && art.id) {
+        const dbArtist = await upsertArtist(art);
+        await prisma.trackArtist.upsert({
+          where: {
+            trackId_artistId: {
+              trackId: dbTrack.id,
+              artistId: dbArtist.id,
+            },
+          },
+          create: {
+            trackId: dbTrack.id,
+            artistId: dbArtist.id,
+            position: i,
+          },
+          update: {
+            position: i,
+          },
+        });
+      }
+    }
+  }
+
+  return dbTrack;
 }
 
 /**

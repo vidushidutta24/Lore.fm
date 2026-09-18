@@ -678,3 +678,78 @@ export interface DiscoverResponse {
     generatedAt: string;
   };
 }
+
+// ─── Story Types ─────────────────────────────────────────────────────────────
+
+export type StoryType =
+  | 'TASTE_SHIFT'
+  | 'OBSESSION'
+  | 'NEW_ARRIVAL'
+  | 'THE_FADE'
+  | 'AFTER_MIDNIGHT'
+  | 'RABBIT_HOLE';
+
+export interface StoryTrackEvidence {
+  trackId: string;
+  trackName: string;
+  artistId: string;
+  artistName: string;
+  albumName: string | null;
+  albumImageUrl: string | null;
+  playCount?: number;
+  previewUrl: string | null;
+  spotifyUrl: string | null;
+  playedAt?: string;
+  roleDescription?: string;
+}
+
+export interface StoryArtistEvidence {
+  artistId: string;
+  artistName: string;
+  imageUrl: string | null;
+  genres: string[];
+  spotifyUrl: string | null;
+  rank?: number;
+  roleDescription?: string;
+}
+
+export interface StoryPeriod {
+  start?: string;
+  end?: string;
+  label: string;
+}
+
+export interface StoryChapter {
+  id: string;
+  chapterNumber: number;
+  type: StoryType;
+  emoji: string;
+  title: string;
+  subtitle: string;
+  prologue: string;
+  paragraphs: string[];
+  moral?: string;
+  period: StoryPeriod;
+  facts: Record<string, string | number | boolean | string[]>;
+  evidenceTracks: StoryTrackEvidence[];
+  evidenceArtists: StoryArtistEvidence[];
+  confidenceScore: number;
+}
+
+export interface StoryPayload {
+  userId: string;
+  prologue: {
+    title: string;
+    description: string;
+    totalListeningEventsAnalyzed: number;
+    totalSnapshotsAnalyzed: number;
+    hasSufficientData: boolean;
+  };
+  chapters: StoryChapter[];
+  metadata: {
+    engine: string;
+    generatedAt: string;
+    typesFound: StoryType[];
+  };
+}
+
