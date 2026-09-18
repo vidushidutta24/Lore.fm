@@ -121,6 +121,44 @@ export const analyticsApi = {
   },
 };
 
+// ─── Recommendations (ML Powered) ─────────────────────────────────
+
+export const recommendationApi = {
+  discover: async (options?: {
+    trackLimit?: number;
+    artistLimit?: number;
+    category?: string;
+  }) => {
+    const res = await api.get('/api/recommendations/discover', {
+      params: {
+        track_limit: options?.trackLimit || 24,
+        artist_limit: options?.artistLimit || 12,
+        category: options?.category,
+      },
+    });
+    return res.data;
+  },
+
+  tracks: async (limit = 20, category?: string) => {
+    const res = await api.get('/api/recommendations/tracks', {
+      params: { limit, category },
+    });
+    return res.data;
+  },
+
+  artists: async (limit = 10, category?: string) => {
+    const res = await api.get('/api/recommendations/artists', {
+      params: { limit, category },
+    });
+    return res.data;
+  },
+
+  tasteVector: async () => {
+    const res = await api.get('/api/recommendations/taste-vector');
+    return res.data;
+  },
+};
+
 
 // ─── Helpers ──────────────────────────────────────────────────────
 

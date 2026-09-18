@@ -256,16 +256,17 @@ export async function searchSpotify(
   userId: string,
   query: string,
   type: 'track' | 'artist' | 'track,artist' = 'track',
-  limit = 20
+  limit = 10
 ): Promise<{ tracks?: SpotifyTrack[]; artists?: SpotifyArtist[] }> {
   try {
+    const safeLimit = Math.min(Math.max(1, limit), 10);
     const res = await spotifyRequest<{
       tracks?: { items: SpotifyTrack[] };
       artists?: { items: SpotifyArtist[] };
     }>(userId, '/search', {
       q: query,
       type,
-      limit,
+      limit: safeLimit,
     });
     return {
       tracks: res.tracks?.items ?? [],

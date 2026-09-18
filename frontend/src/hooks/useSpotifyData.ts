@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { meApi, analyticsApi } from '../services/api';
+import { meApi, analyticsApi, recommendationApi } from '../services/api';
 import type { TimeRange } from '../types';
 
 export function useCurrentlyPlaying() {
@@ -66,6 +66,15 @@ export function useTasteAI() {
   return useQuery({
     queryKey: ['analytics-taste-ai'],
     queryFn: () => analyticsApi.tasteAI(),
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useDiscoverRecommendations(categoryFilter?: string) {
+  return useQuery({
+    queryKey: ['recommendations-discover', categoryFilter],
+    queryFn: () => recommendationApi.discover({ category: categoryFilter }),
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });

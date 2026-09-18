@@ -227,59 +227,70 @@ async function buildUserTastePayload(userId: string) {
  * Gathers a diverse pool of candidate tracks and artists from Spotify API.
  */
 async function gatherCandidates(userId: string, userTastePayload: any) {
-  const seedArtistIds = [
-    ...userTastePayload.top_artists_short.slice(0, 3).map((a: any) => a.artist_id),
-    ...userTastePayload.top_artists_medium.slice(0, 2).map((a: any) => a.artist_id),
-  ].slice(0, 5);
-
-  const seedTrackIds = [
-    ...userTastePayload.top_tracks_short.slice(0, 3).map((t: any) => t.track_id),
-    ...userTastePayload.top_tracks_medium.slice(0, 2).map((t: any) => t.track_id),
-  ].slice(0, 5);
-
   const candidateTracksMap = new Map<string, any>();
   const candidateArtistsMap = new Map<string, any>();
 
-  // 1. Fetch Spotify Recommendations with varying targets
-  const recPromises = [
-    getRecommendationsFromSeeds(userId, {
-      seedArtists: seedArtistIds.slice(0, 3),
-      limit: 30,
-    }),
-    getRecommendationsFromSeeds(userId, {
-      seedTracks: seedTrackIds.slice(0, 3),
-      limit: 30,
-    }),
-    getRecommendationsFromSeeds(userId, {
-      seedArtists: seedArtistIds.slice(0, 2),
-      seedTracks: seedTrackIds.slice(0, 2),
-      limit: 30,
-      minPopularity: 15,
-      maxPopularity: 65, // Underground / discovery focus
-    }),
+  // Extract top artist names across all time ranges
+  const seedArtists = [
+    ...userTastePayload.top_artists_short,
+    ...userTastePayload.top_artists_medium,
+    ...userTastePayload.top_artists_long,
   ];
+  const uniqueArtistNames = Array.from(
+    new Set(seedArtists.map((a: any) => a.name).filter(Boolean))
+  ).slice(0, 6);
 
-  // 2. Fetch Related Artists for top 4 artists
-  const relatedPromises = seedArtistIds.slice(0, 4).map(async (artId: string) => {
-    const related = await getArtistRelatedArtists(userId, artId);
-    return related;
-  });
+  // Extract top genres from summary and top artists
+  const userGenres = Array.from(
+    new Set([
+      ...userTastePayload.genres_summary.map((g: any) => g.genre),
+      ...seedArtists.flatMap((a: any) => a.genres || []),
+    ])
+  )
+    .filter(Boolean)
+    .slice(0, 5);
 
-  const [recResults, relatedResults] = await Promise.all([
-    Promise.all(recPromises),
-    Promise.all(relatedPromises),
-  ]);
+  // Build diverse search queries for candidate generation
+  const searchQueries: Array<{ query: string; genreTag?: string }> = [];
 
-  // Ingest recommendation tracks
-  for (const trackList of recResults) {
-    for (const t of trackList) {
+  // 1. Artist-specific queries (for SIMILAR category and unheard deep cuts)
+  for (const artName of uniqueArtistNames) {
+    searchQueries.push({ query: artName });
+  }
+
+  // 2. User core genres
+  for (const genre of userGenres) {
+    searchQueries.push({ query: genre, genreTag: genre });
+  }
+
+  // 3. Companion & exploration genres (for DISCOVER & EXPLORE)
+  const explorationGenres = ['indie pop', 'dream pop', 'alt rock', 'synthpop', 'bedroom pop', 'r&b', 'tag:new'];
+  for (const eg of explorationGenres) {
+    if (!userGenres.includes(eg) && searchQueries.length < 14) {
+      searchQueries.push({ query: eg, genreTag: eg });
+    }
+  }
+
+  // Execute all Spotify searches in parallel with safe limit (<= 10)
+  const searchPromises = searchQueries.map((item) =>
+    searchSpotify(userId, item.query, 'track,artist', 10)
+  );
+
+  const searchResults = await Promise.all(searchPromises);
+
+  // Ingest search results
+  for (let i = 0; i < searchResults.length; i++) {
+    const result = searchResults[i];
+    const genreTag = searchQueries[i]?.genreTag;
+
+    for (const t of result.tracks || []) {
       if (t && t.id) {
         candidateTracksMap.set(t.id, {
           id: t.id,
           name: t.name,
           artist_id: t.artists[0]?.id || '',
           artist_name: t.artists[0]?.name || 'Unknown',
-          genres: [],
+          genres: genreTag ? [genreTag] : [],
           album_name: t.album?.name || null,
           album_image_url: t.album?.images?.[0]?.url || null,
           preview_url: t.preview_url || null,
@@ -290,50 +301,20 @@ async function gatherCandidates(userId: string, userTastePayload: any) {
         });
       }
     }
-  }
 
-  // Ingest related artists and fetch their top tracks
-  const topTracksPromises: Promise<any>[] = [];
-  for (const artists of relatedResults) {
-    for (const art of artists) {
+    for (const art of result.artists || []) {
       if (art && art.id) {
         candidateArtistsMap.set(art.id, {
           id: art.id,
           name: art.name,
-          genres: art.genres || [],
+          genres: art.genres && art.genres.length > 0 ? art.genres : (genreTag ? [genreTag] : []),
           popularity: art.popularity ?? 50,
           image_url: art.images?.[0]?.url || null,
           spotify_url: art.external_urls?.spotify || null,
         });
-
-        // Add artist's top track as candidate
-        topTracksPromises.push(
-          getArtistTopTracks(userId, art.id).then((tracks) => {
-            for (const t of tracks.slice(0, 3)) {
-              if (t && t.id && !candidateTracksMap.has(t.id)) {
-                candidateTracksMap.set(t.id, {
-                  id: t.id,
-                  name: t.name,
-                  artist_id: art.id,
-                  artist_name: art.name,
-                  genres: art.genres || [],
-                  album_name: t.album?.name || null,
-                  album_image_url: t.album?.images?.[0]?.url || null,
-                  preview_url: t.preview_url || null,
-                  spotify_url: t.external_urls?.spotify || null,
-                  duration_ms: t.duration_ms,
-                  popularity: t.popularity ?? 50,
-                  explicit: t.explicit ?? false,
-                });
-              }
-            }
-          })
-        );
       }
     }
   }
-
-  await Promise.all(topTracksPromises.slice(0, 10));
 
   return {
     candidateTracks: Array.from(candidateTracksMap.values()),

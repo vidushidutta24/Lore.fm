@@ -10,10 +10,7 @@ import { isMLServiceAvailable } from '../services/mlClient';
 
 const router = Router();
 
-// All recommendation routes require authentication
-router.use(requireAuth);
-
-// ─── GET /api/recommendations/health ──────────────────────────────────────────
+// ─── GET /api/recommendations/health (Public health check) ────────────────────
 router.get('/health', async (_req: Request, res: Response) => {
   const active = await isMLServiceAvailable();
   res.json({
@@ -21,6 +18,9 @@ router.get('/health', async (_req: Request, res: Response) => {
     endpoint: process.env.ML_SERVICE_URL || 'http://localhost:8000',
   });
 });
+
+// All recommendation data routes require authentication
+router.use(requireAuth);
 
 // ─── GET /api/recommendations/discover ────────────────────────────────────────
 router.get('/discover', async (req: Request, res: Response, next: NextFunction) => {

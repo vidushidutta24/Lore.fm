@@ -597,6 +597,84 @@ export interface TimelineData {
     hasContinuousHistory: boolean;
     notice: string;
   };
+}// ─── ML Recommendation Types ───────────────────────────────────────────────
+
+export interface MLMatchedSignal {
+  type: string;
+  description: string;
+  strength: number;
 }
 
+export interface MLTrackRecommendation {
+  track_id: string;
+  name: string;
+  artist_id: string;
+  artist_name: string;
+  album_name: string | null;
+  album_image_url: string | null;
+  preview_url: string | null;
+  spotify_url: string | null;
+  category: 'SIMILAR' | 'DISCOVER' | 'EXPLORE' | 'WILDCARD';
+  similarity_score: number;
+  recommendation_score: number;
+  novelty_score: number;
+  genre_affinity_score: number;
+  matched_signals: MLMatchedSignal[];
+  explanation: string;
+}
 
+export interface MLArtistRecommendation {
+  artist_id: string;
+  name: string;
+  genres: string[];
+  image_url: string | null;
+  spotify_url: string | null;
+  popularity: number | null;
+  category: 'SIMILAR' | 'DISCOVER' | 'EXPLORE' | 'WILDCARD';
+  similarity_score: number;
+  recommendation_score: number;
+  novelty_score: number;
+  genre_affinity_score: number;
+  matched_signals: MLMatchedSignal[];
+  explanation: string;
+}
+
+export interface MLRecommendationResponse {
+  user_id: string;
+  generated_at: string;
+  total_candidates_evaluated: number;
+  filtered_already_heard_count: number;
+  recommendations: MLTrackRecommendation[];
+  category_breakdown: Record<string, number>;
+}
+
+export interface MLArtistRecommendationResponse {
+  user_id: string;
+  generated_at: string;
+  total_candidates_evaluated: number;
+  filtered_already_heard_count: number;
+  recommendations: MLArtistRecommendation[];
+  category_breakdown: Record<string, number>;
+}
+
+export interface MLUserTasteSummary {
+  user_id: string;
+  dominant_genres: { genre: string; weight: number }[];
+  average_popularity: number;
+  diversity_score: number;
+  novelty_preference: number;
+  repeat_listening_ratio: number;
+  total_distinct_artists: number;
+  total_distinct_tracks: number;
+}
+
+export interface DiscoverResponse {
+  userTaste: MLUserTasteSummary;
+  tracks: MLRecommendationResponse;
+  artists: MLArtistRecommendationResponse;
+  metadata: {
+    mlServiceActive: boolean;
+    engine: string;
+    generatedAt: string;
+  };
+}
